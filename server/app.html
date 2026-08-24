@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Repository graph</title>
+<style>
+  :root {
+    --row: 28px;
+    --gutter: 78px;
+    --bg: #1b1d22;
+    --bg-alt: #212429;
+    --panel: #23262c;
+    --line: #33373f;
+    --text: #d6d9df;
+    --dim: #8d939e;
+    --faint: #666c77;
+    --accent: #6aa9ff;
+    --hover: #2a2e35;
+    --sel: #2f3742;
+    --add: #6fbf73;
+    --del: #e0736d;
+  }
+  html[data-theme="light"] {
+    --bg: #ffffff;
+    --bg-alt: #f7f8fa;
+    --panel: #ffffff;
+    --line: #e2e5ea;
+    --text: #23272e;
+    --dim: #6a707b;
+    --faint: #9aa0aa;
+    --accent: #2f6fd0;
+    --hover: #f0f2f6;
+    --sel: #e6edf9;
+    --add: #1f8a55;
+    --del: #c0523a;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 13px/1.4 "Segoe UI", system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg-alt);
+    flex: none;
+  }
+  .repo { font-weight: 600; }
+  .path { color: var(--faint); font-size: 11px; }
+  .chip {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1px 8px;
+    color: var(--dim);
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .chip.branch { color: var(--accent); border-color: var(--accent); }
+  .chip.dirty::after { content: " *"; color: var(--del); }
+  .spacer { flex: 1; }
+  select, input, button {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 3px 6px;
+    font: inherit;
+    font-size: 12px;
+  }
+  input:focus, select:focus, button:focus { outline: 1px solid var(--accent); }
+  button { cursor: pointer; }
+  #search { width: 210px; }
+  #status { color: var(--faint); font-size: 11px; white-space: nowrap; }
+  #status b { color: var(--dim); font-weight: 500; }
+  .beat { color: var(--add); transition: color 1.2s; }
+
+  #scroller { flex: 1; overflow: auto; position: relative; }
+  #canvas { position: relative; min-width: min-content; }
+  #svg { position: absolute; top: 0; left: var(--gutter); pointer-events: none; z-index: 2; }
+  #rows { position: relative; z-index: 1; }
+
+  .row {
+    display: grid;
+    grid-template-columns: var(--gutter) var(--gw, 90px) minmax(220px, 1fr) 150px 118px;
+    height: var(--row);
+    align-items: center;
+    white-space: nowrap;
+  }
+  .row:hover { background: var(--hover); }
+  .row.sel { background: var(--sel); }
+  .row.faded { opacity: .28; }
+  .row.day { box-shadow: inset 0 1px 0 var(--line); }
+  .gut { color: var(--faint); font-size: 11px; padding-left: 10px; }
+  .msg { overflow: hidden; text-overflow: ellipsis; padding-right: 12px; }
+  .who, .when { color: var(--dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
+  .when { text-align: right; padding-right: 12px; }
+  .who { display: flex; align-items: center; gap: 6px; }
+  .ava {
+    width: 16px; height: 16px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 9px; color: #10131a; flex: none;
+  }
+  .ref {
+    display: inline-block;
+    border-radius: 3px;
+    padding: 0 5px;
+    margin-right: 5px;
+    font-size: 10.5px;
+    line-height: 15px;
+    vertical-align: 1px;
+    border: 1px solid;
+  }
+  .ref.local  { color: var(--add); border-color: var(--add); }
+  .ref.remote { color: var(--accent); border-color: var(--accent); }
+  .ref.tag    { color: #d8b24a; border-color: #d8b24a; }
+  .ref.head   { color: var(--text); border-color: var(--text); font-weight: 600; }
+
+  #panel {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 440px;
+    background: var(--panel);
+    border-left: 1px solid var(--line);
+    transform: translateX(100%);
+    transition: transform .12s ease-out;
+    display: flex; flex-direction: column;
+    z-index: 5;
+  }
+  #panel.open { transform: none; }
+  #panel header { justify-content: space-between; }
+  #panel .body { overflow: auto; padding: 12px; }
+  #panel h2 { font-size: 14px; margin: 0 0 8px; font-weight: 600; }
+  #panel pre {
+    white-space: pre-wrap;
+    font: 12px/1.5 ui-monospace, Consolas, monospace;
+    margin: 0 0 14px;
+    color: var(--text);
+  }
+  #panel .meta { color: var(--dim); font-size: 11.5px; margin-bottom: 12px; }
+  #panel .meta code { color: var(--text); }
+  .file { display: flex; gap: 8px; font: 11.5px ui-monospace, Consolas, monospace; padding: 1px 0; }
+  .file .p { overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left; }
+  .file .n { flex: none; width: 78px; text-align: right; }
+  .file .n i { font-style: normal; }
+  .a { color: var(--add); }
+  .d { color: var(--del); }
+  .empty { color: var(--faint); padding: 24px; text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <span class="repo" id="repo">...</span>
+  <span class="chip branch" id="branch"></span>
+  <span class="path" id="path"></span>
+  <span class="spacer"></span>
+  <input id="search" type="search" placeholder="filter: text, author, hash, ref">
+  <select id="scope">
+    <option value="all">all branches</option>
+    <option value="head">current branch</option>
+  </select>
+  <select id="limit">
+    <option value="200">200</option>
+    <option value="400" selected>400</option>
+    <option value="1000">1000</option>
+    <option value="0">all</option>
+  </select>
+  <button id="theme" title="light or dark">theme</button>
+  <span id="status"></span>
+</header>
+
+<div id="scroller">
+  <div id="canvas">
+    <svg id="svg" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div id="rows"></div>
+  </div>
+</div>
+
+<aside id="panel">
+  <header>
+    <span class="repo">commit</span>
+    <span class="spacer"></span>
+    <button id="close">close</button>
+  </header>
+  <div class="body" id="detail"></div>
+</aside>
+
+<script>
+const ROW = 28, LANE = 16, PADX = 12, DOT = 3.6;
+const PALETTES = {
+  dark:  ["#e8846c","#5c9dff","#4fc08d","#d8b24a","#b47ce6","#3fbfd0","#e37fb4","#8fbf3f","#e09a4e","#7f8ff0"],
+  light: ["#c0523a","#2f6fd0","#1f8a55","#9c7412","#7b4bbf","#127f92","#b2447f","#5c8210","#b06612","#4a5ec8"]
+};
+
+const $ = (id) => document.getElementById(id);
+const scroller = $("scroller"), rowsBox = $("rows"), svg = $("svg");
+
+const state = {
+  data: null,
+  fp: null,
+  sel: null,
+  query: "",
+  scope: localStorage.getItem("gg.scope") || "all",
+  limit: localStorage.getItem("gg.limit") || "400",
+  theme: localStorage.getItem("gg.theme") ||
+         (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")
+};
+
+/* ---------- helpers ---------- */
+
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const palette = () => PALETTES[state.theme];
+const colorOf = (i) => palette()[i % palette().length];
+const x = (lane) => PADX + lane * LANE;
+const y = (row) => row * ROW + ROW / 2;
+
+function tint(name) {
+  let n = 0;
+  for (const ch of name) n = (n * 31 + ch.charCodeAt(0)) & 0xffff;
+  return `hsl(${n % 360} 45% 68%)`;
+}
+
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function dayLabel(d) {
+  return d.getDate() + " " + MONTHS[d.getMonth()] +
+         (d.getFullYear() === new Date().getFullYear() ? "" : " " + String(d.getFullYear()).slice(2));
+}
+
+function ago(d) {
+  const s = (Date.now() - d.getTime()) / 1000;
+  if (s < 60) return "just now";
+  if (s < 3600) return Math.floor(s / 60) + " min ago";
+  if (s < 86400) return Math.floor(s / 3600) + " h ago";
+  if (s < 6 * 86400) return Math.floor(s / 86400) + " d ago";
+  return dayLabel(d) + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+}
+
+/* An edge leaves its commit, travels down one lane, and lands on its parent.
+   Each change of lane costs one row of bezier, which is the GitLab elbow. */
+function edgePath(fromRow, fromLane, routeLane, toRow, toLane) {
+  const y0 = y(fromRow), y1 = y(toRow);
+  const x0 = x(fromLane), xr = x(routeLane), x1 = x(toLane);
+  if (x0 === xr && xr === x1) return `M ${x0} ${y0} L ${x1} ${y1}`;
+
+  const bends = (x0 !== xr ? 1 : 0) + (xr !== x1 ? 1 : 0);
+  if (y1 - y0 < bends * ROW) {          // no room for the elbows, one clean S
+    const mid = (y0 + y1) / 2;
+    return `M ${x0} ${y0} C ${x0} ${mid}, ${x1} ${mid}, ${x1} ${y1}`;
+  }
+
+  let d = `M ${x0} ${y0}`;
+  let top = y0;
+  if (x0 !== xr) {
+    const yb = y0 + ROW, mid = (y0 + yb) / 2;
+    d += ` C ${x0} ${mid}, ${xr} ${mid}, ${xr} ${yb}`;
+    top = yb;
+  }
+  if (xr !== x1) {
+    const yt = y1 - ROW, mid = (yt + y1) / 2;
+    if (yt > top) d += ` L ${xr} ${yt}`;
+    d += ` C ${xr} ${mid}, ${x1} ${mid}, ${x1} ${y1}`;
+  } else if (y1 > top) {
+    d += ` L ${xr} ${y1}`;
+  }
+  return d;
+}
+
+/* ---------- rendering ---------- */
+
+function captureAnchor() {
+  if (!state.data || scroller.scrollTop < 4) return null;
+  const row = Math.floor(scroller.scrollTop / ROW);
+  const commit = state.data.commits[row];
+  return commit ? { h: commit.h, delta: scroller.scrollTop - row * ROW } : null;
+}
+
+function restoreAnchor(anchor) {
+  if (!anchor) { scroller.scrollTop = 0; return; }
+  const i = state.data.commits.findIndex((c) => c.h === anchor.h);
+  scroller.scrollTop = i >= 0 ? i * ROW + anchor.delta : 0;
+}
+
+function render(data) {
+  const anchor = captureAnchor();
+  state.data = data;
+
+  $("repo").textContent = data.repo;
+  $("branch").textContent = data.branch;
+  $("branch").className = "chip branch" + (data.dirty ? " dirty" : "");
+  $("path").textContent = data.path;
+  document.title = data.repo + " . graph";
+
+  const width = PADX * 2 + Math.max(data.lanes, 1) * LANE;
+  const height = Math.max(data.commits.length * ROW, 1);
+  document.documentElement.style.setProperty("--gw", width + "px");
+  svg.setAttribute("width", width);
+  svg.setAttribute("height", height);
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+
+  const paths = [];
+  for (const e of data.edges) {
+    const stroke = colorOf(e.c);
+    if (e.tr === null) {              // parent below the window: a stub going nowhere
+      paths.push(`<path d="${edgePath(e.fr, e.fl, e.rl, e.fr + 1, e.rl)}" stroke="${stroke}" stroke-dasharray="3 3" fill="none" stroke-width="1.6" opacity=".5"/>`);
+      continue;
+    }
+    paths.push(`<path d="${edgePath(e.fr, e.fl, e.rl, e.tr, e.tl)}" stroke="${stroke}" fill="none" stroke-width="1.6"/>`);
+  }
+  for (const c of data.commits) {
+    const fill = colorOf(c.c);
+    const big = c.refs.length > 0;
+    paths.push(`<circle cx="${x(c.lane)}" cy="${y(c.row)}" r="${big ? DOT + 1.4 : DOT}" fill="${big ? "var(--bg)" : fill}" stroke="${fill}" stroke-width="${big ? 2.4 : 1.6}"/>`);
+  }
+  svg.innerHTML = paths.join("");
+
+  const html = [];
+  let lastDay = "";
+  for (const c of data.commits) {
+    const when = new Date(c.t);
+    const label = dayLabel(when);
+    const newDay = label !== lastDay;
+    lastDay = label;
+    const refs = c.refs
+      .map((r) => `<span class="ref ${r.k}">${esc(r.n)}</span>`)
+      .join("");
+    html.push(
+      `<div class="row${newDay ? " day" : ""}" data-h="${c.h}">` +
+        `<div class="gut">${newDay ? label : ""}</div>` +
+        `<div></div>` +
+        `<div class="msg">${refs}${esc(c.s)}</div>` +
+        `<div class="who"><span class="ava" style="background:${tint(c.an)}">${esc(c.an.slice(0, 1).toUpperCase())}</span>${esc(c.an)}</div>` +
+        `<div class="when" title="${when.toLocaleString()}">${ago(when)}</div>` +
+      `</div>`
+    );
+  }
+  rowsBox.innerHTML = html.join("") ||
+    `<div class="empty">no commit to show</div>`;
+
+  applyFilter();
+  markSelection();
+  restoreAnchor(anchor);
+  beat(data);
+}
+
+function applyFilter() {
+  const q = state.query.trim().toLowerCase();
+  const rows = rowsBox.children;
+  if (!state.data) return;
+  for (let i = 0; i < rows.length; i++) {
+    const c = state.data.commits[i];
+    if (!c) continue;
+    const hit = !q ||
+      c.s.toLowerCase().includes(q) ||
+      c.an.toLowerCase().includes(q) ||
+      c.h.startsWith(q) ||
+      c.refs.some((r) => r.n.toLowerCase().includes(q));
+    rows[i].classList.toggle("faded", !hit);
+  }
+}
+
+function markSelection() {
+  for (const row of rowsBox.children) row.classList.toggle("sel", row.dataset.h === state.sel);
+}
+
+let beatTimer = null;
+function beat(data) {
+  const now = new Date();
+  const count = data.commits.length + (data.truncated ? "+" : "");
+  $("status").innerHTML =
+    `<b class="beat">${count} commits</b> . ${String(now.getHours()).padStart(2, "0")}:` +
+    `${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+  clearTimeout(beatTimer);
+  beatTimer = setTimeout(() => {
+    const b = document.querySelector("#status .beat");
+    if (b) b.classList.remove("beat");
+  }, 60);
+}
+
+/* ---------- data ---------- */
+
+async function load() {
+  try {
+    const res = await fetch(`/api/graph?scope=${state.scope}&limit=${state.limit}`);
+    const data = await res.json();
+    if (data.error) { $("status").textContent = "error: " + data.error; return; }
+    state.fp = data.fingerprint;
+    render(data);
+  } catch (err) {
+    $("status").textContent = "server gone";
+  }
+}
+
+async function poll() {
+  if (document.hidden) return;
+  try {
+    const res = await fetch("/api/fingerprint");
+    const data = await res.json();
+    if (data.fingerprint && data.fingerprint !== state.fp) load();
+  } catch (err) { /* the next tick will tell */ }
+}
+
+async function openCommit(h) {
+  state.sel = h;
+  markSelection();
+  $("panel").classList.add("open");
+  $("detail").innerHTML = `<div class="empty">reading...</div>`;
+  const res = await fetch("/api/commit?h=" + encodeURIComponent(h));
+  const d = await res.json();
+  if (d.error) { $("detail").innerHTML = `<div class="empty">${esc(d.error)}</div>`; return; }
+  const files = d.files.map((f) => {
+    const n = f.a === null ? "bin" : `<i class="a">+${f.a}</i> <i class="d">-${f.d}</i>`;
+    return `<div class="file"><span class="n">${n}</span><span class="p">${esc(f.path)}</span></div>`;
+  }).join("");
+  const at = new Date(d.at);
+  $("detail").innerHTML =
+    `<h2>${esc(d.body.split("\n")[0])}</h2>` +
+    `<div class="meta"><code>${d.h.slice(0, 12)}</code> . ${esc(d.an)} &lt;${esc(d.ae)}&gt;<br>` +
+    `${at.toLocaleString()}${d.merge ? " . merge commit" : ""}</div>` +
+    `<pre>${esc(d.body.split("\n").slice(1).join("\n").trim())}</pre>` +
+    (files || `<div class="empty">no file listed (merge)</div>`);
+}
+
+/* ---------- wiring ---------- */
+
+document.documentElement.dataset.theme = state.theme;
+$("scope").value = state.scope;
+$("limit").value = state.limit;
+
+$("scope").onchange = (e) => { state.scope = e.target.value; localStorage.setItem("gg.scope", state.scope); load(); };
+$("limit").onchange = (e) => { state.limit = e.target.value; localStorage.setItem("gg.limit", state.limit); load(); };
+$("search").oninput = (e) => { state.query = e.target.value; applyFilter(); };
+$("theme").onclick = () => {
+  state.theme = state.theme === "dark" ? "light" : "dark";
+  localStorage.setItem("gg.theme", state.theme);
+  document.documentElement.dataset.theme = state.theme;
+  if (state.data) render(state.data);
+};
+$("close").onclick = () => { $("panel").classList.remove("open"); state.sel = null; markSelection(); };
+
+rowsBox.onclick = (e) => {
+  const row = e.target.closest(".row");
+  if (row) openCommit(row.dataset.h);
+};
+
+addEventListener("keydown", (e) => {
+  if (e.key === "/" && document.activeElement !== $("search")) { e.preventDefault(); $("search").focus(); }
+  if (e.key === "Escape") {
+    if ($("panel").classList.contains("open")) $("close").click();
+    else if (state.query) { state.query = ""; $("search").value = ""; applyFilter(); }
+  }
+});
+
+addEventListener("focus", load);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+
+load();
+setInterval(poll, 2500);
+setInterval(() => { if (!document.hidden) load(); }, 10000);
+</script>
+</body>
+</html>
