@@ -99,6 +99,40 @@ button:disabled { cursor: default; color: var(--faint); }
 
 .bar input[type='search'] { width: 210px; }
 
+/* the strip you grab to move the window: empty, and full height or there is
+   nothing to grab in a row that centres its items */
+.bar .spacer { align-self: stretch; }
+
+/* the three window buttons, flush to the corner like every other window */
+
+.wincontrols {
+  display: flex;
+  align-self: stretch;
+  margin: -8px -12px -8px 4px;
+}
+
+.wincontrols button {
+  width: 44px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--dim);
+}
+
+.wincontrols button:hover { background: var(--hover); color: var(--text); }
+.wincontrols button:focus { outline: none; }
+.wincontrols .quit:hover { background: #c42b1c; color: #ffffff; }
+
+.wincontrols svg {
+  width: 10px;
+  height: 10px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+}
+
 .path {
   color: var(--faint);
   font-size: 11px;

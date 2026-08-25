@@ -5,6 +5,8 @@ import { useGraph } from './useGraph'
 import { CommitPanel } from './components/CommitPanel'
 import { GraphView } from './components/GraphView'
 import { RepoPicker } from './components/RepoPicker'
+import { WindowControls } from './components/WindowControls'
+import { dragProps } from './window'
 
 const LIMITS = [200, 400, 1000, 0]
 
@@ -74,8 +76,8 @@ export default function App() {
     <>
       <header className="bar">
         <RepoPicker repos={repos} current={current} onPick={pick} onChanged={refreshRepos} />
-        <span className="path">{graph?.path}</span>
-        <span className="spacer" />
+        <span className="path" {...dragProps}>{graph?.path}</span>
+        <span className="spacer" {...dragProps} />
         <input
           ref={search}
           type="search"
@@ -116,6 +118,7 @@ export default function App() {
           theme
         </button>
         <span className={error ? 'status bad' : 'status'}>{status}</span>
+        <WindowControls />
       </header>
 
       {graph
