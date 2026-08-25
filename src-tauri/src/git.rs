@@ -5,9 +5,12 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
+use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
+use std::io::Write;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::sync::{Mutex, OnceLock};
 
 const FIELD: char = '\u{1f}';
 const RECORD: char = '\u{1e}';
@@ -32,7 +35,8 @@ pub struct Filters {
 
 /// Run git in a repository. On Windows the child must not open a console, or
 /// every call would flash a black window over the app.
-pub fn git(repo: &str, args: &[&str]) -> Result<String, String> {
+/// One place where git is spawned, so nothing started here ever flashes a console of its own.
+fn git_command(repo: &str, args: &[&str]) -> Command {
     let mut command = Command::new("git");
     command.arg("-C").arg(repo).args(args);
     #[cfg(windows)]
@@ -41,6 +45,11 @@ pub fn git(repo: &str, args: &[&str]) -> Result<String, String> {
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         command.creation_flags(CREATE_NO_WINDOW);
     }
+    command
+}
+
+pub fn git(repo: &str, args: &[&str]) -> Result<String, String> {
+    let mut command = git_command(repo, args);
     let output = command.output().map_err(|err| format!("git could not start: {err}"))?;
     if !output.status.success() {
         let message = String::from_utf8_lossy(&output.stderr).trim().to_string();
@@ -72,6 +81,13 @@ pub fn toplevel(path: &str) -> Result<String, String> {
 pub struct GitRef {
     pub n: String,
     pub k: &'static str,
+    /// Whether a trunk already holds this branch, under these hashes or under others.
+    #[serde(skip_serializing_if = "not")]
+    pub m: bool,
+}
+
+fn not(held: &bool) -> bool {
+    !*held
 }
 
 #[derive(Serialize)]
@@ -85,6 +101,9 @@ pub struct Commit {
     pub lane: usize,
     pub row: usize,
     pub c: usize,
+    /// The commit carrying this very change somewhere else, a replay of it or its original.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tw: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -199,15 +218,15 @@ fn parse_refs(decoration: &str, remotes: &[String]) -> Vec<GitRef> {
             continue;
         }
         if let Some(rest) = raw.strip_prefix("HEAD -> ") {
-            refs.push(GitRef { n: "HEAD".into(), k: "head" });
+            refs.push(GitRef { n: "HEAD".into(), k: "head", m: false });
             raw = rest.trim();
         }
         if raw == "HEAD" {
-            refs.push(GitRef { n: "HEAD".into(), k: "head" });
+            refs.push(GitRef { n: "HEAD".into(), k: "head", m: false });
             continue;
         }
         if let Some(tag) = raw.strip_prefix("tag: ") {
-            refs.push(GitRef { n: tag.trim().into(), k: "tag" });
+            refs.push(GitRef { n: tag.trim().into(), k: "tag", m: false });
             continue;
         }
         // git slips these in among the refs, and neither one is a ref: taken for
@@ -220,7 +239,7 @@ fn parse_refs(decoration: &str, remotes: &[String]) -> Vec<GitRef> {
         } else {
             "local"
         };
-        refs.push(GitRef { n: raw.into(), k: kind });
+        refs.push(GitRef { n: raw.into(), k: kind, m: false });
     }
     refs
 }
@@ -243,6 +262,218 @@ fn shallow_of(repo: &str) -> std::collections::HashSet<String> {
     std::fs::read_to_string(Path::new(repo).join(".git").join("shallow"))
         .map(|text| text.lines().map(str::trim).filter(|line| !line.is_empty()).map(str::to_string).collect())
         .unwrap_or_default()
+}
+
+/// The names a branch is measured against. Anything else is a topic branch, and a topic branch
+/// is what can be finished with rather than what work is aimed at.
+const TRUNKS: [&str; 4] = ["dev", "main", "master", "trunk"];
+/// How far back a replay is looked for on the trunk side. What normally bounds it is where the
+/// oldest branch left the trunk, tens of commits; this is for the branch abandoned a year ago,
+/// whose diffs would otherwise be seconds of work.
+const CHERRY_CAP: usize = 1000;
+/// Commits per pipeline. Both pipes stay under what the system buffers, so nothing has to be
+/// read while something else is still being written.
+const CHERRY_BATCH: usize = 400;
+
+/// The branches a trunk already holds, and the hash each of their commits is held under.
+type InTrunk = (HashSet<String>, HashMap<String, String>);
+
+/// repo -> (the refs it was read from, the answer). What a replay costs is diffs, and the
+/// answer only moves when a ref does, so a working tree being typed in does not pay for it.
+static IN_TRUNK: OnceLock<Mutex<HashMap<String, (String, InTrunk)>>> = OnceLock::new();
+
+/// Every commit named, filed under the patch it carries.
+///
+/// The diffs never come back into this process: diff-tree writes them straight into patch-id,
+/// which answers one short line per commit. Reading them here would be megabytes of bytes in no
+/// encoding in particular, a diff carrying whatever the files carry.
+fn patch_ids(repo: &str, revs: &[String]) -> HashMap<String, Vec<String>> {
+    let mut filed: HashMap<String, Vec<String>> = HashMap::new();
+
+    for batch in revs.chunks(CHERRY_BATCH) {
+        let mut diffs = match git_command(repo, &["diff-tree", "--stdin", "-p"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+        {
+            Ok(child) => child,
+            Err(_) => return filed,
+        };
+
+        // the diffs go straight into patch-id, and this process keeps no handle on them, or
+        // patch-id would wait on a pipe nothing is left to close
+        let Some(pipe) = diffs.stdout.take() else { return filed };
+        let ids = match git_command(repo, &["patch-id", "--stable"])
+            .stdin(Stdio::from(pipe))
+            .stdout(Stdio::piped())
+            .spawn()
+        {
+            Ok(child) => child,
+            Err(_) => return filed,
+        };
+
+        if let Some(mut stdin) = diffs.stdin.take() {
+            let list = batch.join("\n") + "\n";
+            let _ = stdin.write_all(list.as_bytes());
+        }
+
+        let answer = match ids.wait_with_output() {
+            Ok(output) => String::from_utf8_lossy(&output.stdout).into_owned(),
+            Err(_) => return filed,
+        };
+        let _ = diffs.wait();
+
+        for line in answer.lines() {
+            let mut parts = line.split_whitespace();
+            if let (Some(patch), Some(commit)) = (parts.next(), parts.next()) {
+                filed.entry(patch.to_string()).or_default().push(commit.to_string());
+            }
+        }
+    }
+
+    filed
+}
+
+/// Which branches a trunk already holds, and the hash it holds each of their commits under.
+///
+/// A branch is in a trunk in one of two ways. The trunk holds its very commits, which is what a
+/// fast-forward leaves, and git says so. Or the trunk holds the same changes under other hashes,
+/// which is what a rebase and a cherry-pick leave, and about that git says nothing at all: the
+/// branch reads as work still waiting, forever, and the commits read as two pieces of work when
+/// they are one done twice.
+///
+/// Both answers are the same question asked of the patch rather than of the hash.
+pub fn already_in_trunk(repo: &str) -> InTrunk {
+    let listing = git_soft(
+        repo,
+        &["for-each-ref", "--format=%(refname:short) %(objectname)", "refs/heads"],
+    );
+    let held = IN_TRUNK.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Ok(cache) = held.lock() {
+        if let Some((key, answer)) = cache.get(repo) {
+            if *key == listing {
+                return answer.clone();
+            }
+        }
+    }
+
+    let mut tips: Vec<(String, String)> = Vec::new();
+    for line in listing.lines() {
+        let mut parts = line.split_whitespace();
+        if let (Some(name), Some(tip)) = (parts.next(), parts.next()) {
+            tips.push((name.to_string(), tip.to_string()));
+        }
+    }
+
+    let answer = read_in_trunk(repo, &tips);
+    if let Ok(mut cache) = held.lock() {
+        cache.insert(repo.to_string(), (listing, answer.clone()));
+    }
+    answer
+}
+
+fn read_in_trunk(repo: &str, tips: &[(String, String)]) -> InTrunk {
+    let mut merged: HashSet<String> = HashSet::new();
+    let mut twins: HashMap<String, String> = HashMap::new();
+
+    let is_trunk = |name: &String| TRUNKS.contains(&name.as_str());
+    let trunk_tips: Vec<&str> =
+        tips.iter().filter(|(n, _)| is_trunk(n)).map(|(_, h)| h.as_str()).collect();
+    let topics: Vec<&(String, String)> = tips.iter().filter(|(n, _)| !is_trunk(n)).collect();
+    if trunk_tips.is_empty() || topics.is_empty() {
+        return (merged, twins);
+    }
+    let topic_tips: Vec<&str> = topics.iter().map(|(_, h)| h.as_str()).collect();
+
+    // every commit the topic branches hold and no trunk does, with its parents, so which branch
+    // each one belongs to is walked here rather than asked of git one branch at a time
+    let mut args: Vec<&str> = vec!["rev-list", "--parents"];
+    args.extend(&topic_tips);
+    args.push("--not");
+    args.extend(&trunk_tips);
+    let mut own: HashMap<String, Vec<String>> = HashMap::new();
+    for line in git_soft(repo, &args).lines() {
+        let mut parts = line.split_whitespace().map(str::to_string);
+        if let Some(commit) = parts.next() {
+            own.insert(commit, parts.collect());
+        }
+    }
+
+    if own.is_empty() {
+        for (name, _) in topics {
+            merged.insert(name.clone());
+        }
+        return (merged, twins);
+    }
+
+    // Where the oldest of those branches left the trunk, which is as far back as a replay of
+    // theirs can sit. Asking for the trunk --not the branches answers nothing at all for a
+    // branch that is merely ahead of the trunk, the whole trunk being reachable from it.
+    let mut args: Vec<&str> = vec!["merge-base", "--octopus"];
+    args.extend(&trunk_tips);
+    args.extend(&topic_tips);
+    let base: Vec<String> = git_soft(repo, &args).split_whitespace().map(str::to_string).collect();
+
+    let cap = CHERRY_CAP.to_string();
+    let mut args: Vec<&str> = vec!["rev-list", "--no-merges"];
+    args.extend(&trunk_tips);
+    if base.is_empty() {
+        args.extend(["-n", cap.as_str()]);
+    } else {
+        args.push("--not");
+        args.extend(base.iter().map(String::as_str));
+    }
+    let theirs: Vec<String> = git_soft(repo, &args)
+        .split_whitespace()
+        .take(CHERRY_CAP)
+        .map(str::to_string)
+        .collect();
+
+    // a merge commit carries no patch of its own, and a replay drops it, so it is never asked for
+    let mine: Vec<String> =
+        own.iter().filter(|(_, parents)| parents.len() < 2).map(|(h, _)| h.clone()).collect();
+
+    if !theirs.is_empty() && !mine.is_empty() {
+        let on_trunk: HashSet<&str> = theirs.iter().map(String::as_str).collect();
+        let mut both = theirs.clone();
+        both.extend(mine.iter().cloned());
+        for group in patch_ids(repo, &both).values() {
+            let Some(there) = group.iter().find(|h| on_trunk.contains(h.as_str())) else {
+                continue;
+            };
+            for one in group {
+                if !on_trunk.contains(one.as_str()) {
+                    twins.insert(one.clone(), there.clone());
+                    twins.insert(there.clone(), one.clone());
+                }
+            }
+        }
+    }
+
+    for (name, tip) in topics {
+        if !own.contains_key(tip) {
+            merged.insert(name.clone()); // the trunk holds this branch under its own hashes
+            continue;
+        }
+        let mut walked: HashSet<&str> = HashSet::new();
+        let mut front: Vec<&str> = vec![tip.as_str()];
+        while let Some(here) = front.pop() {
+            if walked.contains(here) {
+                continue;
+            }
+            let Some(parents) = own.get(here) else { continue };
+            walked.insert(here);
+            front.extend(parents.iter().map(String::as_str));
+        }
+        let all_replayed = walked.iter().all(|h| {
+            own.get(*h).map(|parents| parents.len() >= 2).unwrap_or(false) || twins.contains_key(*h)
+        });
+        if all_replayed {
+            merged.insert(name.clone());
+        }
+    }
+
+    (merged, twins)
 }
 
 fn read_commits(
@@ -318,7 +549,7 @@ fn read_commits(
         };
         let mut refs = parse_refs(decoration, &remotes);
         if cut.contains(h) {
-            refs.push(GitRef { n: "shallow".to_string(), k: "shallow" });
+            refs.push(GitRef { n: "shallow".to_string(), k: "shallow", m: false });
         }
         commits.push(Raw {
             h: h.to_string(),
@@ -437,6 +668,7 @@ fn build_graph(raw: Vec<Raw>) -> (Vec<Commit>, Vec<Edge>, usize) {
             lane,
             row,
             c: color,
+            tw: None,
         });
     }
 
@@ -512,8 +744,17 @@ pub fn graph(
     } else {
         read_commits(repo, scope, limit, order, filters)?
     };
-    let (commits, edges, lanes) = build_graph(raw);
+    let (mut commits, edges, lanes) = build_graph(raw);
     let (branch, dirty) = head_of(repo)?;
+    let (merged, twins) = already_in_trunk(repo);
+    for commit in &mut commits {
+        commit.tw = twins.get(&commit.h).cloned();
+        for held in &mut commit.refs {
+            if held.k == "local" && merged.contains(&held.n) {
+                held.m = true;
+            }
+        }
+    }
     Ok(Graph {
         repo: base_name(repo),
         path: repo.to_string(),
