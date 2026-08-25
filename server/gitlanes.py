@@ -25,7 +25,7 @@ ROOT = os.path.dirname(HERE)
 DIST = os.path.join(ROOT, "web", "dist")
 FIELD = "\x1f"
 RECORD = "\x1e"
-BRANCH = "branch:"      # what the front end prefixes a scope with to name one branch
+REF = "ref:"            # what the front end prefixes a scope with to name one ref
 
 
 # --------------------------------------------------------------------------- git
@@ -86,12 +86,14 @@ def read_commits(repo, scope, limit, order, author="", since="", paths=""):
     fmt = FIELD.join(["%H", "%P", "%an", "%aI", "%D", "%s"]) + RECORD
     args = ["log", "--topo-order" if order == "topo" else "--date-order",
             "--pretty=format:" + fmt]
-    if scope == "all":
+    # a scope must spell refs/... in full, or it is no scope: that is what keeps a
+    # ref called -f a ref and never an option. A tag starts a history as a branch does.
+    wanted = scope[len(REF):] if scope.startswith(REF) else ""
+    if wanted.startswith("refs/"):
+        args.append(wanted)
+    else:
         # not --all: that one drags in refs/stash and the note refs
         args += ["--branches", "--tags", "--remotes", "HEAD"]
-    elif scope.startswith(BRANCH):
-        # spelled in full: a branch called -f stays a branch and never an option
-        args.append("refs/heads/" + scope[len(BRANCH):])
     if author:
         args.append("--author=" + author)
     if since:
