@@ -253,6 +253,25 @@ def read_branch_refs(repo):
     return [line.split(FIELD) for line in listing.splitlines() if line.strip()]
 
 
+def read_plain_refs(repo, where):
+    """Name, the commit it stands on, and when: enough to find it in the graph.
+
+    An annotated tag is an object of its own, so the peeled name is what points
+    at the commit; a lightweight one has none and points there itself.
+    """
+    fmt = FIELD.join([
+        "%(refname:short)", "%(objectname)", "%(*objectname)", "%(creatordate:iso-strict)",
+    ])
+    listing = git(repo, "for-each-ref", "--sort=-creatordate", "--format=" + fmt, where)
+    refs = []
+    for line in listing.splitlines():
+        if not line.strip():
+            continue
+        name, tip, peeled, when = line.split(FIELD)
+        refs.append({"name": name, "head": peeled or tip, "t": when})
+    return refs
+
+
 def pick_base(names, head, branch=None):
     """The branch a divergence is measured against, None when there is no other one."""
     for candidate in (head, "dev", "main", names[0] if names else None):
@@ -300,7 +319,15 @@ def branch_payload(repo):
             "ahead": ahead,
             "upstream": pushed,
         })
-    return {"base": pick_base(names, head), "branches": branches}
+    # origin/HEAD is a pointer at another of them, never a branch of its own
+    remotes = [ref for ref in read_plain_refs(repo, "refs/remotes")
+               if not ref["name"].endswith("/HEAD")]
+    return {
+        "base": pick_base(names, head),
+        "branches": branches,
+        "remotes": remotes,
+        "tags": read_plain_refs(repo, "refs/tags"),
+    }
 
 
 # --------------------------------------------------------- the list of repositories
