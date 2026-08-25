@@ -10,6 +10,18 @@ than publishing an installer named after one thing and built from another.
 Everything is a pre-release while the version stays under `1.0.0`, and nothing here promises what
 the next one holds.
 
+## Unreleased
+
+- **A branch a trunk already holds says so.** A branch whose commits are all in `dev` or `main`
+  carries a `merged` tag beside its name on its last commit, whether the trunk holds those very
+  commits or the same changes replayed under other hashes by a rebase or a cherry-pick. Git says
+  nothing about the second, which is what makes a branch finished with months ago go on reading
+  as work still waiting.
+
+- **A change that was replayed lights both of its copies.** Clicking either one rings the pair,
+  the one clicked solid and its twin dashed, so two rows carrying one piece of work read as one
+  piece of work rather than two.
+
 ## 0.1.0
 
 The first release, and an installer for it.
