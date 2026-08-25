@@ -10,6 +10,7 @@ use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::time::SystemTime;
 use std::sync::{Mutex, OnceLock};
 
 const FIELD: char = '\u{1f}';
@@ -90,6 +91,39 @@ fn not(held: &bool) -> bool {
     !*held
 }
 
+/// What one worktree holds that no commit does, as the graph carries it.
+#[derive(Serialize, Clone)]
+pub struct Working {
+    pub path: String,
+    pub branch: String,
+    /// Whether this is the worktree being read, rather than another folder of the same history.
+    pub here: bool,
+    pub staged: usize,
+    pub changed: usize,
+    pub untracked: usize,
+}
+
+/// The same, with the files it comes to when asked.
+#[derive(Serialize)]
+pub struct WorkingDetail {
+    pub path: String,
+    pub branch: String,
+    pub head: String,
+    pub here: bool,
+    pub staged: usize,
+    pub changed: usize,
+    pub untracked: usize,
+    pub files: Vec<WorkingFile>,
+}
+
+#[derive(Serialize)]
+pub struct WorkingFile {
+    pub a: Option<u32>,
+    pub d: Option<u32>,
+    pub path: String,
+    pub st: &'static str,
+}
+
 #[derive(Serialize)]
 pub struct Commit {
     pub h: String,
@@ -104,6 +138,9 @@ pub struct Commit {
     /// The commit carrying this very change somewhere else, a replay of it or its original.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tw: Option<String>,
+    /// Set on a row that is no commit at all: the uncommitted work of one worktree.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wt: Option<Working>,
 }
 
 #[derive(Serialize)]
@@ -251,6 +288,7 @@ struct Raw {
     t: String,
     s: String,
     refs: Vec<GitRef>,
+    wt: Option<Working>,
 }
 
 /// The commits a shallow clone was cut at, empty when the clone is whole.
@@ -476,6 +514,258 @@ fn read_in_trunk(repo: &str, tips: &[(String, String)]) -> InTrunk {
     (merged, twins)
 }
 
+/// What a working row is called, in place of the hash a commit has. The path follows, since that
+/// is what tells two worktrees of one repository apart.
+pub const WORKING: &str = "wt:";
+/// How many changed paths are stat'ed for the date a working row carries. A worktree with more
+/// than this going on is not one whose exact minute anybody is reading.
+const WORKING_STAT: usize = 200;
+
+struct Tree {
+    path: String,
+    head: String,
+    branch: String,
+    bare: bool,
+}
+
+/// Every worktree of this repository, the one being read included.
+///
+/// A worktree is a second checkout of the same history, with its own HEAD and its own
+/// uncommitted work. Git holds them all in one list, which is why the branch left half finished
+/// in another folder is knowable from here at all.
+fn worktrees_of(repo: &str) -> Vec<Tree> {
+    let mut trees = Vec::new();
+    let mut held: Option<Tree> = None;
+
+    for line in git_soft(repo, &["worktree", "list", "--porcelain"]).lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            if let Some(tree) = held.take() {
+                trees.push(tree);
+            }
+            continue;
+        }
+        let (key, value) = line.split_once(' ').unwrap_or((line, ""));
+        match key {
+            "worktree" => {
+                if let Some(tree) = held.take() {
+                    trees.push(tree);
+                }
+                held = Some(Tree {
+                    path: normal(value),
+                    head: String::new(),
+                    branch: String::new(),
+                    bare: false,
+                });
+            }
+            "HEAD" => {
+                if let Some(tree) = held.as_mut() {
+                    tree.head = value.to_string();
+                }
+            }
+            // refs/heads/feat/one keeps its slashes: only the refs/heads/ in front comes off
+            "branch" => {
+                if let Some(tree) = held.as_mut() {
+                    tree.branch = value.strip_prefix("refs/heads/").unwrap_or(value).to_string();
+                }
+            }
+            "bare" => {
+                if let Some(tree) = held.as_mut() {
+                    tree.bare = true;
+                }
+            }
+            _ => {}
+        }
+    }
+    if let Some(tree) = held.take() {
+        trees.push(tree);
+    }
+    trees
+}
+
+/// The one spelling of a path this tool compares, since git answers forward slashes everywhere.
+fn normal(path: &str) -> String {
+    #[cfg(windows)]
+    {
+        path.replace('/', "\\")
+    }
+    #[cfg(not(windows))]
+    {
+        path.to_string()
+    }
+}
+
+/// What one worktree holds that no commit does: the counts, and when it was last touched.
+fn status_of(tree: &str) -> (usize, usize, usize, Option<SystemTime>) {
+    let (mut staged, mut changed, mut untracked) = (0, 0, 0);
+    let mut newest: Option<SystemTime> = None;
+    let mut stated = 0;
+
+    for line in git_soft(tree, &["status", "--porcelain"]).lines() {
+        if line.len() < 3 {
+            continue;
+        }
+        let index = line.as_bytes()[0] as char;
+        let work = line.as_bytes()[1] as char;
+        let name = line[3..].trim().trim_matches('"');
+        if index == '?' {
+            untracked += 1;
+        } else {
+            if index != ' ' {
+                staged += 1;
+            }
+            if work != ' ' {
+                changed += 1;
+            }
+        }
+        // the newest of them is what says how long ago this was left, which is the whole
+        // question a worktree opened in another folder raises
+        if stated < WORKING_STAT {
+            stated += 1;
+            // a rename is spelled "old -> new", and it is the new one that is on disk
+            let name = name.rsplit(" -> ").next().unwrap_or(name);
+            if let Ok(when) = std::fs::metadata(Path::new(tree).join(name)).and_then(|it| it.modified()) {
+                newest = Some(match newest {
+                    Some(held) if held > when => held,
+                    _ => when,
+                });
+            }
+        }
+    }
+
+    (staged, changed, untracked, newest)
+}
+
+/// The same date the log carries, so a row of one kind sorts and reads beside a row of the other.
+fn stamp(when: SystemTime) -> String {
+    let seconds = when
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map(|held| held.as_secs() as i64)
+        .unwrap_or(0);
+    // git's own spelling of an instant, and the browser reads it as one
+    let days = seconds.div_euclid(86_400);
+    let rest = seconds.rem_euclid(86_400);
+    let (year, month, day) = civil(days);
+    format!(
+        "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}Z",
+        rest / 3600,
+        (rest % 3600) / 60,
+        rest % 60
+    )
+}
+
+/// Days since the epoch, as a date. Howard Hinnant's civil_from_days, which is the short way.
+fn civil(days: i64) -> (i64, u32, u32) {
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let year = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = (doy - (153 * mp + 2) / 5 + 1) as u32;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
+    (if month <= 2 { year + 1 } else { year }, month, day)
+}
+
+/// One row per worktree holding uncommitted work, to hang above the commit it sits on.
+///
+/// It is not a commit and it says so: no hash, a dashed dot and a dashed line down to the commit
+/// it was started from. What it answers is the question a repository of several worktrees raises
+/// every time, which is where the work in progress was left.
+fn working_rows(repo: &str) -> Vec<Raw> {
+    let here = normal(repo);
+    let mut rows = Vec::new();
+
+    for tree in worktrees_of(repo) {
+        if tree.bare || tree.head.is_empty() {
+            continue;
+        }
+        let (staged, changed, untracked, newest) = status_of(&tree.path);
+        if staged == 0 && changed == 0 && untracked == 0 {
+            continue;
+        }
+        rows.push(Raw {
+            h: format!("{WORKING}{}", tree.path),
+            p: vec![tree.head.clone()],
+            an: String::new(),
+            t: stamp(newest.unwrap_or_else(SystemTime::now)),
+            s: "uncommitted changes".to_string(),
+            refs: Vec::new(),
+            wt: Some(Working {
+                here: tree.path == here,
+                branch: if tree.branch.is_empty() { "detached".into() } else { tree.branch.clone() },
+                path: tree.path,
+                staged,
+                changed,
+                untracked,
+            }),
+        });
+    }
+
+    rows
+}
+
+/// Each row goes immediately above the commit its worktree sits on, or nowhere at all.
+///
+/// Nowhere is what a filtered read leaves: a worktree whose commit the filters removed has no
+/// place to hang from, and a row hanging off nothing would draw a line into empty space.
+fn hang_working_rows(commits: &mut Vec<Raw>, rows: Vec<Raw>) {
+    for row in rows {
+        let parent = row.p.first().cloned().unwrap_or_default();
+        if let Some(at) = commits.iter().position(|commit| commit.h == parent) {
+            commits.insert(at, row);
+        }
+    }
+}
+
+/// What one worktree holds that no commit does, file by file.
+pub fn working_detail(repo: &str, path: &str) -> Result<WorkingDetail, String> {
+    let wanted = normal(path);
+    let tree = worktrees_of(repo)
+        .into_iter()
+        .find(|tree| tree.path == wanted)
+        .ok_or_else(|| format!("no worktree of this repository at {path}"))?;
+
+    let mut files = Vec::new();
+    // against HEAD, so what is staged and what is not are one answer: both are work no commit
+    // holds, and the panel is read to see what is going on rather than what git would commit
+    for line in git_soft(&tree.path, &["diff", "--numstat", "HEAD"]).lines() {
+        let parts: Vec<&str> = line.split('\t').collect();
+        if parts.len() != 3 {
+            continue;
+        }
+        files.push(WorkingFile {
+            a: parts[0].parse().ok(),
+            d: parts[1].parse().ok(),
+            path: parts[2].to_string(),
+            st: "changed",
+        });
+    }
+    for line in git_soft(&tree.path, &["status", "--porcelain"]).lines() {
+        if let Some(name) = line.strip_prefix("?? ") {
+            files.push(WorkingFile {
+                a: None,
+                d: None,
+                path: name.trim().trim_matches('"').to_string(),
+                st: "untracked",
+            });
+        }
+    }
+
+    let (staged, changed, untracked, _) = status_of(&tree.path);
+    Ok(WorkingDetail {
+        here: tree.path == normal(repo),
+        branch: if tree.branch.is_empty() { "detached".into() } else { tree.branch },
+        head: tree.head,
+        path: tree.path,
+        staged,
+        changed,
+        untracked,
+        files,
+    })
+}
+
 fn read_commits(
     repo: &str,
     scope: &str,
@@ -552,6 +842,7 @@ fn read_commits(
             refs.push(GitRef { n: "shallow".to_string(), k: "shallow", m: false });
         }
         commits.push(Raw {
+            wt: None,
             h: h.to_string(),
             p: parents.split_whitespace().map(str::to_string).collect(),
             an: an.to_string(),
@@ -669,6 +960,7 @@ fn build_graph(raw: Vec<Raw>) -> (Vec<Commit>, Vec<Edge>, usize) {
             row,
             c: color,
             tw: None,
+            wt: item.wt,
         });
     }
 
@@ -703,6 +995,11 @@ fn build_graph(raw: Vec<Raw>) -> (Vec<Commit>, Vec<Edge>, usize) {
     (commits, edges, lane_count)
 }
 
+/// What moves when the repository does, cheaply enough to be asked every couple of seconds.
+///
+/// The working trees of the other worktrees are not in it, on purpose: a status run in each of
+/// them on every tick is exactly the cost this question exists to avoid. Their rows therefore
+/// catch up whenever anything else moves, rather than the moment they change.
 pub fn fingerprint(repo: &str) -> Result<String, String> {
     let refs = git(repo, &["for-each-ref", "--format=%(objectname) %(refname)"])?;
     let head = git_soft(repo, &["rev-parse", "--verify", "-q", "HEAD"]);
@@ -744,6 +1041,8 @@ pub fn graph(
     } else {
         read_commits(repo, scope, limit, order, filters)?
     };
+    let mut raw = raw;
+    hang_working_rows(&mut raw, working_rows(repo));
     let (mut commits, edges, lanes) = build_graph(raw);
     let (branch, dirty) = head_of(repo)?;
     let (merged, twins) = already_in_trunk(repo);

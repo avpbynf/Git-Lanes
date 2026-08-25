@@ -3,7 +3,7 @@
 
 mod git;
 
-use git::{BranchList, CommitDetail, Filters, Graph, RepoEntry};
+use git::{BranchList, CommitDetail, Filters, Graph, RepoEntry, WorkingDetail};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -166,6 +166,11 @@ async fn commit_detail(repo: Option<String>, hash: String) -> Result<CommitDetai
     off_thread(move || git::commit_detail(&which_repo(repo)?, &hash)).await
 }
 
+#[tauri::command]
+async fn working(repo: Option<String>, path: String) -> Result<WorkingDetail, String> {
+    off_thread(move || git::working_detail(&which_repo(repo)?, &path)).await
+}
+
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -177,7 +182,8 @@ fn main() {
             graph,
             branches,
             fingerprint,
-            commit_detail
+            commit_detail,
+            working
         ])
         .run(tauri::generate_context!())
         .expect("GitLanes could not start its window");
