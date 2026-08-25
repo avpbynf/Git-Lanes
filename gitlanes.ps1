@@ -7,7 +7,7 @@
     reused as is, so calling this twice never starts a second one.
 .EXAMPLE
     .\gitlanes.ps1
-    .\gitlanes.ps1 -Repo C:\Users\nicol\Documents\GitHub\Iris -Port 7421
+    .\gitlanes.ps1 -Repo C:\code\some-other-repository -Port 7421
 #>
 param(
     [string]$Repo = (Get-Location).Path,
