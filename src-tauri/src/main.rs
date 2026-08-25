@@ -59,52 +59,81 @@ struct RepoList {
     default: Option<String>,
 }
 
-#[tauri::command]
-fn repos() -> RepoList {
-    let held = load_registry();
-    RepoList {
-        default: held.first().cloned(),
-        repos: held.iter().map(|path| git::describe(path)).collect(),
-    }
+/// Read git off the main thread.
+///
+/// A synchronous command runs on the thread that pumps the window messages, so
+/// spawning git there freezes the window: it stops repainting while Windows
+/// moves it, and a move loop started from the page dies on the spot. The page
+/// asks for a fingerprint every two and a half seconds, so this is not an edge
+/// case, it is the normal traffic.
+async fn off_thread<T, F>(work: F) -> Result<T, String>
+where
+    F: FnOnce() -> Result<T, String> + Send + 'static,
+    T: Send + 'static,
+{
+    tauri::async_runtime::spawn_blocking(work)
+        .await
+        .map_err(|err| format!("the reader thread gave up: {err}"))?
 }
 
 #[tauri::command]
-fn open_repo(path: String) -> Result<RepoEntry, String> {
-    let top = git::toplevel(&path)?;
-    let mut held = load_registry();
-    held.retain(|known| !same_path(known, &top));
-    held.insert(0, top.clone());
-    held.truncate(40);
-    save_registry(&held);
-    Ok(git::describe(&top))
+async fn repos() -> Result<RepoList, String> {
+    off_thread(|| {
+        let held = load_registry();
+        Ok(RepoList {
+            default: held.first().cloned(),
+            repos: held.iter().map(|path| git::describe(path)).collect(),
+        })
+    })
+    .await
 }
 
 #[tauri::command]
-fn close_repo(path: String) -> Vec<RepoEntry> {
-    let mut held = load_registry();
-    held.retain(|known| !same_path(known, &path));
-    save_registry(&held);
-    held.iter().map(|known| git::describe(known)).collect()
+async fn open_repo(path: String) -> Result<RepoEntry, String> {
+    off_thread(move || {
+        let top = git::toplevel(&path)?;
+        let mut held = load_registry();
+        held.retain(|known| !same_path(known, &top));
+        held.insert(0, top.clone());
+        held.truncate(40);
+        save_registry(&held);
+        Ok(git::describe(&top))
+    })
+    .await
 }
 
 #[tauri::command]
-fn discover(root: String) -> Result<Vec<RepoEntry>, String> {
-    Ok(git::discover(&root, 2)?.iter().map(|path| git::describe(path)).collect())
+async fn close_repo(path: String) -> Result<Vec<RepoEntry>, String> {
+    off_thread(move || {
+        let mut held = load_registry();
+        held.retain(|known| !same_path(known, &path));
+        save_registry(&held);
+        Ok(held.iter().map(|known| git::describe(known)).collect())
+    })
+    .await
 }
 
 #[tauri::command]
-fn graph(repo: Option<String>, scope: String, limit: usize) -> Result<Graph, String> {
-    git::graph(&which_repo(repo)?, &scope, limit)
+async fn discover(root: String) -> Result<Vec<RepoEntry>, String> {
+    off_thread(move || {
+        Ok(git::discover(&root, 2)?.iter().map(|path| git::describe(path)).collect())
+    })
+    .await
 }
 
 #[tauri::command]
-fn fingerprint(repo: Option<String>) -> Result<String, String> {
-    git::fingerprint(&which_repo(repo)?)
+async fn graph(repo: Option<String>, scope: String, limit: usize) -> Result<Graph, String> {
+    off_thread(move || git::graph(&which_repo(repo)?, &scope, limit)).await
 }
 
 #[tauri::command]
-fn commit_detail(repo: Option<String>, hash: String) -> Result<CommitDetail, String> {
-    git::commit_detail(&which_repo(repo)?, &hash)
+async fn fingerprint(repo: Option<String>) -> Result<String, String> {
+    off_thread(move || git::fingerprint(&which_repo(repo)?)).await
+}
+
+#[tauri::command]
+async fn commit_detail(repo: Option<String>, hash: String) -> Result<CommitDetail, String> {
+    off_thread(move || git::commit_detail(&which_repo(repo)?, &hash)).await
 }
 
 fn main() {
