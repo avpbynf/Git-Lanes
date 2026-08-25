@@ -32,7 +32,7 @@ the next one holds.
 
 The first release, and an installer for it.
 
-- **The commit graph of a local repository, drawn the way GitLab draws it.** One column per
+- **The commit graph of a local repository, drawn the way IntelliJ draws it.** One column per
   branch, an elbow where a branch opens and where it merges, dates down the left margin, and
   branch and tag labels on the commits that carry them. The whole history is read at once, so
   scrolling asks for nothing.

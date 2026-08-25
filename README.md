@@ -1,92 +1,118 @@
-# GitLanes
+<p align="center">
+  <img src="src-tauri/icons/source.png" width="128" alt="">
+</p>
 
-The commit graph of a local repository, in the browser, drawn the way GitLab draws it: one
-column per branch, an elbow where a branch opens and where it merges, dates down the left
-margin, branch and tag labels on the commits that carry them.
+<h1 align="center">GitLanes</h1>
 
-It exists because reading where a branch stands should not cost opening an IDE.
+<p align="center">
+  The commit graph of a local repository, in a window of its own.
+</p>
 
-## Running it
+---
+
+Reading where a branch stands should not cost opening an IDE. GitLanes draws a history the way
+IntelliJ draws it: one column per branch, an elbow where a branch opens and where it merges,
+dates down the left margin, and branch and tag labels on the commits that carry them.
+
+**It never writes to a repository.** It runs `git log`, `git show`, `git rev-list` and
+`git for-each-ref`, reads what they print, and holds no lock, so it is safe to leave open beside
+whatever else you are doing to the same folder.
+
+## Quick start
+
+Windows: take `GitLanes_<version>_x64-setup.exe` from the
+[releases](https://github.com/avpbynf/gitlanes/releases), run it, and open the window it installs.
+It carries what it needs: the window reads git in Rust, so nothing has to be installed beside git
+itself.
+
+Then open a folder. `+ open a folder` at the top of the tree on the left takes a repository, and
+takes a folder holding several just as well, offering what it finds under it. The projects opened
+stay in that tree, and the one being read is the one lit.
+
+## What it shows
+
+**The graph, in the middle.** The whole history at once, so scrolling asks for nothing further.
+The commit being read is ringed, the row under the pointer lights the branch it belongs to, and
+the arrows walk from one commit to the next. Click a commit for its message and the files it
+touched.
+
+**The tree, on the left.** The projects, then the local branches, the remote ones and the tags,
+each name filed under the folders it already spells, so `feat/custom-images` sits under `feat`. A
+branch says how far ahead and behind it stands and whether it was ever pushed. One field at the
+top hunts through all of it. Clicking a ref goes to its tip, or bounds the graph to it when the
+menu says so, a tag as readily as a branch.
+
+**What is not committed yet**, above the commit it was started from, drawn with a dashed dot
+because it is not history yet: how many files are staged, changed and untracked, and when they
+were last touched. Every worktree of the repository gets its own, on its own branch, so work left
+in a folder nobody has open any more is visible from here.
+
+**A branch a trunk already holds says so**, with a `merged` tag beside its name, whether `dev` or
+`main` holds its very commits or the same changes replayed under other hashes by a rebase or a
+cherry-pick. Git says nothing about the second, which is what makes a branch finished with months
+ago read as work still waiting. Clicking either copy of a replayed change rings both.
+
+**Two ways of narrowing**, in the row above the graph, and the difference is on purpose. The text
+field dims what does not match, so the shape of the graph stays readable while the eye looks for
+one commit in it; `/` focuses it, and the two switches beside it read it as a regular expression
+and tell upper case from lower. The author, the date and the paths after it are given to git,
+which does not return what it leaves out.
+
+**The commit last clicked, on the right.** Either side column can be dragged by its inner edge or
+turned off in the menu, where the theme and what a click on a ref does also live. Escape clears
+the commit, then the filter.
+
+## How it reads a repository
+
+The lane assignment is the whole trick, and it lives in `build_graph`. A lane holds the hash it is
+still waiting for. A commit takes the leftmost lane waiting for it, and the other lanes waiting
+for it close there, which is what draws a merge. Its first parent keeps the lane, the others open
+one, which is what draws a branch.
+
+A rebased history has no merge commit, so it has nothing to draw and it shows as one column. That
+is the repository saying what it is, not the tool giving up.
+
+A shallow clone holds no parent for the commits it was cut at, and those carry a dashed `shallow`
+label rather than passing for the root of the history.
+
+Nothing redraws on a timer. A cheap fingerprint of the refs, of HEAD and of the working tree is
+asked for every two and a half seconds, the history is read again only when that moves, and a
+window nobody is looking at asks nothing at all. The list of repositories you have opened is kept
+in `%APPDATA%\gitlanes\repos.json`.
+
+## Building it
+
+Two pieces build, and the first is an input to the second:
+
+```
+cd web && bun install && bun run build      the page, into web/dist
+cd src-tauri && cargo tauri build           the window, and its installer
+```
+
+`bun run build` runs `tsc -b` first, so it is also the type check, and `bunx oxlint src` is the
+lint. A fresh clone cannot build the window until the page and the icons exist, both being derived
+and neither being in git; the icons come back with `cargo tauri icon src-tauri/icons/source.png`.
+
+There is a second backend, in Python, and it is the fast way to see a change: it serves the same
+page over HTTP with no Rust involved, so a rebuilt page is one reload away.
 
 ```
 .\gitlanes.ps1                     the repository in the current folder
 .\gitlanes.ps1 -Repo C:\code\foo   any other one
-.\gitlanes.ps1 -Port 7421          a second one, at the same time
 ```
 
-The page redraws on its own whenever a ref moves, and only then. What it watches is a cheap
-fingerprint of the refs, of HEAD and of the working tree, asked for every two and a half seconds.
-It pauses while its tab is hidden and catches up when you come back to it.
-
-Click a commit for its message and the files it touched, or walk from one to the next with the
-arrows, which open each one the same way. The commit being read is ringed in the graph, and the
-row under the pointer lights the branch it belongs to and steps the others back. Escape clears
-the commit, then the filter.
-
-The row under the bar narrows the reading, and it does so in two different ways on purpose.
-The text field dims what does not match instead of hiding it, so the shape of the graph stays
-readable while the eye looks for one commit in it; `/` focuses it, and the two switches beside
-it read it as a regular expression and tell upper case from lower. The three controls after it
-are given to git, which does not return what it leaves out: the author, how far back to read,
-and the paths a commit must have touched.
-
-The window is three columns. On the left, the tree: the projects opened come first, then the refs
-of the one being read, local branches, remote ones and tags each in their section. One field at
-the top hunts through all of it at once, projects as much as refs, and a name with slashes in it
-reads as the folders it already is, so `feat/custom-images` files itself under `feat`. Opening a
-project is choosing a folder: it opens if it is a repository, and if it is not one but holds
-some, those are offered instead. A local branch carries how far ahead and behind it stands from
-its base and whether it was ever pushed; hovering says the rest in full. Clicking any ref scrolls
-the graph to its tip and opens it, or bounds the graph to it when the menu says so, tags as much
-as branches: git reads a tag as a starting point exactly as it reads a branch, so `v0.7.5`
-answers what the history looked like there. On the right, the commit last clicked. The graph in
-the middle is what the other two leave, and the edge between two columns drags to give one of
-them more room. Either side can be turned off for good in the menu, and the commit panel has a
-third way there: gone until a commit is clicked, with a cross to send it away again.
-
-The graph is read whole, once per repository, so nothing is fetched while scrolling and the whole
-history is there to scroll through. The burger at the far left opens what is worth choosing: the
-theme, which of the two side columns to keep, and whether a ref clicked goes to its tip or bounds
-the graph to it instead.
-
-## Building the front end
-
-```
-cd web
-bun install
-bun run build      writes web/dist, which the backend then serves
-bun run dev        the same build, rebuilt on every save
-```
-
-A fresh clone or worktree builds the page before it can build the window: `web/dist` and the
-derived icons are both ignored by git, and the Rust build embeds them. The icons come back with
-`cargo tauri icon src-tauri/icons/source.png`.
+It listens on `127.0.0.1` only and imports nothing outside the standard library. Both backends
+answer the same shapes, so the page cannot tell which one it is talking to, and a change to one is
+a change to both.
 
 The bundler is Bun's own, not Vite. Vite 8 bundles through a native rolldown module, and an
 application control policy can refuse to load an unsigned native module, which is enough to stop
 it dead. Bun needs no such module, and the whole build takes under a tenth of a second.
 
-## What it needs
+## Read more
 
-Git and Python 3 to serve, Bun to build the page. The backend imports nothing outside the
-standard library.
-
-## How it reads a repository
-
-It runs `git log`, `git show`, `git rev-list` and `git for-each-ref` and parses their output.
-**It never writes to a repository**, and it holds no lock, so it is safe to leave open while
-you work.
-
-The lane assignment is the whole trick, and it lives in `build_graph`. A lane holds the hash it
-is still waiting for. A commit takes the leftmost lane waiting for it, and the other lanes
-waiting for it close there, which is what draws a merge. Its first parent keeps the lane, the
-others open one, which is what draws a branch.
-
-A rebased history has no merge commit, so it has nothing to draw and it shows as one column.
-That is the repository saying what it is, not the tool giving up.
-
-A shallow clone holds no parent for the commits it was cut at, and those carry a dashed `shallow`
-label rather than passing for the root of the history.
-
-The backend listens on `127.0.0.1` only, and the list of repositories you have opened is kept
-in `%APPDATA%\gitlanes\repos.json`.
+| If you want to | Read |
+| --- | --- |
+| See what changed from one version to the next | [CHANGELOG.md](CHANGELOG.md) |
+| Know how work enters this repository and how a version leaves it | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| Understand how it is built, and what has already cost time here | [CLAUDE.md](CLAUDE.md) |
