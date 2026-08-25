@@ -3,7 +3,7 @@
 
 mod git;
 
-use git::{BranchList, CommitDetail, Graph, RepoEntry};
+use git::{BranchList, CommitDetail, Filters, Graph, RepoEntry};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -122,8 +122,14 @@ async fn discover(root: String) -> Result<Vec<RepoEntry>, String> {
 }
 
 #[tauri::command]
-async fn graph(repo: Option<String>, scope: String, limit: usize, order: String) -> Result<Graph, String> {
-    off_thread(move || git::graph(&which_repo(repo)?, &scope, limit, &order)).await
+async fn graph(
+    repo: Option<String>,
+    scope: String,
+    limit: usize,
+    order: String,
+    filters: Filters,
+) -> Result<Graph, String> {
+    off_thread(move || git::graph(&which_repo(repo)?, &scope, limit, &order, &filters)).await
 }
 
 #[tauri::command]

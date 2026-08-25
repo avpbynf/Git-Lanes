@@ -3,7 +3,7 @@
 //! This is the same reading the Python backend does, and it answers the same
 //! shapes, because the front end cannot tell which one it is talking to.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
@@ -13,6 +13,22 @@ const FIELD: char = '\u{1f}';
 const RECORD: char = '\u{1e}';
 /// What the front end prefixes a scope with to name one branch.
 const BRANCH: &str = "branch:";
+
+/// `--author=<value>` and the like, or nothing at all when the value is empty.
+fn some_arg(flag: &str, value: &str) -> Option<String> {
+    (!value.is_empty()).then(|| format!("{flag}{value}"))
+}
+
+/// What narrows the read beyond the refs it starts from. Empty means no narrowing.
+#[derive(Deserialize, Default)]
+#[serde(default)]
+pub struct Filters {
+    pub author: String,
+    /// Anything git reads as a date, so `7 days ago` as much as `2026-08-01`.
+    pub since: String,
+    /// Comma separated, and each one is a path git matches from the root.
+    pub paths: String,
+}
 
 /// Run git in a repository. On Windows the child must not open a console, or
 /// every call would flash a black window over the app.
@@ -203,7 +219,13 @@ struct Raw {
     refs: Vec<GitRef>,
 }
 
-fn read_commits(repo: &str, scope: &str, limit: usize, order: &str) -> Result<Vec<Raw>, String> {
+fn read_commits(
+    repo: &str,
+    scope: &str,
+    limit: usize,
+    order: &str,
+    filters: &Filters,
+) -> Result<Vec<Raw>, String> {
     let format = format!(
         "--pretty=format:%H{f}%P{f}%an{f}%aI{f}%D{f}%s{r}",
         f = FIELD,
@@ -211,6 +233,14 @@ fn read_commits(repo: &str, scope: &str, limit: usize, order: &str) -> Result<Ve
     );
     let limit_arg = limit.to_string();
     let branch_ref = scope.strip_prefix(BRANCH).map(|name| format!("refs/heads/{name}"));
+    let author_arg = some_arg("--author=", &filters.author);
+    let since_arg = some_arg("--since=", &filters.since);
+    let wanted: Vec<&str> = filters
+        .paths
+        .split(',')
+        .map(str::trim)
+        .filter(|path| !path.is_empty())
+        .collect();
     let sort = if order == "topo" { "--topo-order" } else { "--date-order" };
     let mut args = vec!["log", sort, format.as_str()];
     if scope == "all" {
@@ -220,8 +250,19 @@ fn read_commits(repo: &str, scope: &str, limit: usize, order: &str) -> Result<Ve
         // spelled in full: a branch called -f stays a branch and never an option
         args.push(reference);
     }
+    if let Some(arg) = author_arg.as_deref() {
+        args.push(arg);
+    }
+    if let Some(arg) = since_arg.as_deref() {
+        args.push(arg);
+    }
     if limit > 0 {
         args.extend_from_slice(&["-n", limit_arg.as_str()]);
+    }
+    // the paths come last, behind the separator, or a branch named like a file wins
+    if !wanted.is_empty() {
+        args.push("--");
+        args.extend_from_slice(&wanted);
     }
 
     let remotes: Vec<String> = git(repo, &["remote"])?
@@ -412,8 +453,18 @@ fn is_empty(repo: &str) -> bool {
     git_soft(repo, &["for-each-ref", "--count=1", "--format=%(objectname)"]).trim().is_empty()
 }
 
-pub fn graph(repo: &str, scope: &str, limit: usize, order: &str) -> Result<Graph, String> {
-    let raw = if is_empty(repo) { Vec::new() } else { read_commits(repo, scope, limit, order)? };
+pub fn graph(
+    repo: &str,
+    scope: &str,
+    limit: usize,
+    order: &str,
+    filters: &Filters,
+) -> Result<Graph, String> {
+    let raw = if is_empty(repo) {
+        Vec::new()
+    } else {
+        read_commits(repo, scope, limit, order, filters)?
+    };
     let (commits, edges, lanes) = build_graph(raw);
     let (branch, dirty) = head_of(repo)?;
     Ok(Graph {
