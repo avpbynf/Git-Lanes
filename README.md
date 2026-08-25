@@ -14,12 +14,12 @@ It exists because reading where a branch stands should not cost opening an IDE.
 .\gitlanes.ps1 -Port 7421          a second one, at the same time
 ```
 
-The page redraws on its own whenever a ref moves, and every ten seconds in any case. It pauses
-while its tab is hidden and catches up when you come back to it.
+The page redraws on its own whenever a ref moves, and only then. What it watches is a cheap
+fingerprint of the refs, of HEAD and of the working tree, asked for every two and a half seconds.
+It pauses while its tab is hidden and catches up when you come back to it.
 
 Click a commit for its message and the files it touched. Escape clears the commit, then the
-filter. The repository name on the left opens the picker, which switches between the
-repositories already opened and scans a folder for new ones.
+filter.
 
 The row under the bar narrows the reading, and it does so in two different ways on purpose.
 The text field dims what does not match instead of hiding it, so the shape of the graph stays
@@ -28,21 +28,24 @@ it read it as a regular expression and tell upper case from lower. The three con
 are given to git, which does not return what it leaves out: the author, how far back to read,
 and the paths a commit must have touched.
 
-The window is three columns. On the left, the tree of refs: local branches, remote ones and tags
-each have their section, and a name with slashes in it reads as the folders it already is, so
-`feat/custom-images` files itself under `feat`. A local branch carries how far ahead and behind
-it stands from its base and whether it was ever pushed; hovering says the rest in full. Clicking
-any ref scrolls the graph to its tip and opens it, or bounds the graph to it when the menu says
-so, tags as much as branches: git reads a tag as a starting point exactly as it reads a branch,
-so `v0.7.5` answers what the history looked like there. On the right, the commit last clicked. The
-graph in the middle is what the other two leave, and the edge between two columns drags to give
-one of them more room. Either side can be turned off for good in the menu, and the commit panel
-has a third way there: gone until a commit is clicked, with a cross to send it away again.
+The window is three columns. On the left, the tree: the projects opened come first, then the refs
+of the one being read, local branches, remote ones and tags each in their section. One field at
+the top hunts through all of it at once, projects as much as refs, and a name with slashes in it
+reads as the folders it already is, so `feat/custom-images` files itself under `feat`. Opening a
+project is choosing a folder: it opens if it is a repository, and if it is not one but holds
+some, those are offered instead. A local branch carries how far ahead and behind it stands from
+its base and whether it was ever pushed; hovering says the rest in full. Clicking any ref scrolls
+the graph to its tip and opens it, or bounds the graph to it when the menu says so, tags as much
+as branches: git reads a tag as a starting point exactly as it reads a branch, so `v0.7.5`
+answers what the history looked like there. On the right, the commit last clicked. The graph in
+the middle is what the other two leave, and the edge between two columns drags to give one of
+them more room. Either side can be turned off for good in the menu, and the commit panel has a
+third way there: gone until a commit is clicked, with a cross to send it away again.
 
-The graph reads four hundred commits and reads four hundred more each time the scrolling
-reaches its end, so nothing has to be asked for in advance. The burger at the far left opens
-what is worth choosing: the theme, which of the two side columns to keep, and whether a ref
-clicked goes to its tip or bounds the graph to it instead.
+The graph is read whole, once per repository, so nothing is fetched while scrolling and the whole
+history is there to scroll through. The burger at the far left opens what is worth choosing: the
+theme, which of the two side columns to keep, and whether a ref clicked goes to its tip or bounds
+the graph to it instead.
 
 ## Building the front end
 
@@ -79,6 +82,9 @@ others open one, which is what draws a branch.
 
 A rebased history has no merge commit, so it has nothing to draw and it shows as one column.
 That is the repository saying what it is, not the tool giving up.
+
+A shallow clone holds no parent for the commits it was cut at, and those carry a dashed `shallow`
+label rather than passing for the root of the history.
 
 The backend listens on `127.0.0.1` only, and the list of repositories you have opened is kept
 in `%APPDATA%\gitlanes\repos.json`.
