@@ -92,6 +92,14 @@ export interface CommitDetail {
 /** `all`, or `branch:<name>`. The backends read it, the front end spells it in scope.ts. */
 export type Scope = string
 
+/**
+ * How the rows are ordered.
+ *
+ * `date` reads down the calendar, so two branches worked on the same afternoon
+ * interleave. `topo` keeps a branch whole, at the cost of dates that jump.
+ */
+export type Order = 'date' | 'topo'
+
 async function get<T>(path: string, params: Record<string, string | number | undefined> = {}): Promise<T> {
   const url = new URL(path, location.origin)
   for (const [key, value] of Object.entries(params)) {
@@ -127,10 +135,10 @@ const desktop = (globalThis as { __TAURI__?: { core?: { invoke?: Invoke } } })._
 
 export const insideApp = Boolean(desktop)
 
-export const fetchGraph = (repo: string | null, scope: Scope, limit: number) =>
+export const fetchGraph = (repo: string | null, scope: Scope, limit: number, order: Order) =>
   desktop
-    ? (desktop('graph', { repo, scope, limit }) as Promise<Graph>)
-    : get<Graph>('/api/graph', { repo: repo ?? undefined, scope, limit })
+    ? (desktop('graph', { repo, scope, limit, order }) as Promise<Graph>)
+    : get<Graph>('/api/graph', { repo: repo ?? undefined, scope, limit, order })
 
 export const fetchBranches = (repo: string | null) =>
   desktop

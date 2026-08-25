@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { fetchRepos, type Branch, type RepoEntry } from './api'
+import { fetchRepos, type Branch, type Order, type RepoEntry } from './api'
 import { ago } from './lanes'
 import { ALL, readScope } from './scope'
 import { readSettings, writeSettings, type Settings } from './settings'
@@ -22,11 +22,28 @@ const REFRESH = (
   </svg>
 )
 
+const BY_DATE = (
+  <svg viewBox="0 0 16 16" aria-hidden="true">
+    <path d="M2.6 3.6h10.8M2.6 8h7M2.6 12.4h3.4" />
+  </svg>
+)
+
+const BY_BRANCH = (
+  <svg viewBox="0 0 16 16" aria-hidden="true">
+    <path d="M5.2 4.6v7.6M5.2 8.4h3.2a2.4 2.4 0 0 0 2.4-2.4V4.6" />
+    <circle cx="5.2" cy="13.6" r="1.4" />
+    <circle cx="10.8" cy="3.2" r="1.4" />
+  </svg>
+)
+
 export default function App() {
   const [repos, setRepos] = useState<RepoEntry[]>([])
   const [current, setCurrent] = useState<string | null>(() => localStorage.getItem('repo'))
   const [scope, setScope] = useState(() => readScope(localStorage.getItem('scope')))
   const [limit, setLimit] = useState(PAGE)
+  const [order, setOrder] = useState<Order>(() =>
+    localStorage.getItem('order') === 'topo' ? 'topo' : 'date',
+  )
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<string | null>(null)
   const [jump, setJump] = useState<{ h: string; n: number } | null>(null)
@@ -48,7 +65,7 @@ export default function App() {
   // oxlint-disable-next-line react/set-state-in-effect
   useEffect(() => { void refreshRepos() }, [refreshRepos])
 
-  const { graph, error, updatedAt, reload } = useGraph(current, scope, limit)
+  const { graph, error, updatedAt, reload } = useGraph(current, scope, limit, order)
 
   useEffect(() => { document.documentElement.dataset.theme = settings.theme }, [settings.theme])
   useEffect(() => { if (current) localStorage.setItem('repo', current) }, [current])
@@ -134,6 +151,17 @@ export default function App() {
           placeholder="filter: text, author, hash, ref"
           onChange={(event) => setQuery(event.target.value)}
         />
+        <button
+          className="icon"
+          title={order === 'date' ? 'read down the calendar' : 'each branch kept whole'}
+          onClick={() => {
+            const next: Order = order === 'date' ? 'topo' : 'date'
+            setOrder(next)
+            localStorage.setItem('order', next)
+          }}
+        >
+          {order === 'date' ? BY_DATE : BY_BRANCH}
+        </button>
         <button className="icon" title={freshness} onClick={() => void reload()}>{REFRESH}</button>
         <SettingsMenu settings={settings} onChange={change} />
         <span className={error ? 'status bad' : 'status'}>{status}</span>

@@ -294,7 +294,7 @@ button:disabled { cursor: default; color: var(--faint); }
 
 .row {
   display: grid;
-  grid-template-columns: var(--gutter) var(--gw, 90px) minmax(220px, 1fr) 150px 118px;
+  grid-template-columns: var(--gutter) var(--gw, 90px) minmax(180px, 1fr) minmax(0, auto) 150px 118px;
   height: var(--row);
   align-items: center;
   white-space: nowrap;
@@ -331,21 +331,35 @@ button:disabled { cursor: default; color: var(--faint); }
   flex: none;
 }
 
+/* the refs stand against the author rather than in front of the message, which
+   used to push every subject a different distance from the left */
+.refs {
+  display: flex;
+  justify-self: end;
+  gap: 5px;
+  min-width: 0;
+  max-width: 280px;
+  overflow: hidden;
+  padding-right: 10px;
+}
+
 .ref {
-  display: inline-block;
   border-radius: 3px;
   padding: 0 5px;
-  margin-right: 5px;
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 10.5px;
   line-height: 15px;
-  vertical-align: 1px;
   border: 1px solid;
+  /* a name too long gives up its head: the tail is what tells two refs apart */
+  direction: rtl;
+  text-align: left;
 }
 
 .ref.local { color: var(--add); border-color: var(--add); }
 .ref.remote { color: var(--accent); border-color: var(--accent); }
 .ref.tag { color: var(--tag); border-color: var(--tag); }
-.ref.head { color: var(--text); border-color: var(--text); font-weight: 600; }
 
 /* the commit panel */
 

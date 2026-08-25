@@ -141,17 +141,25 @@ export function GraphView({ graph, theme, query, selected, jump, onSelect, onMor
           })}
           {visible.map((commit) => {
             const fill = colorOf(commit.c, theme)
-            const tagged = commit.refs.length > 0
+            const head = commit.refs.some((ref) => ref.k === 'head')
+            const tagged = commit.refs.some((ref) => ref.k !== 'head')
+            const x = laneX(commit.lane)
+            const y = rowY(commit.row)
             return (
-              <circle
-                key={commit.h}
-                cx={laneX(commit.lane)}
-                cy={rowY(commit.row)}
-                r={tagged ? DOT + 1.4 : DOT}
-                fill={tagged ? 'var(--bg)' : fill}
-                stroke={fill}
-                strokeWidth={tagged ? 2.4 : 1.6}
-              />
+              <g key={commit.h}>
+                {/* where HEAD stands gets a halo, which is what a ref label would say twice */}
+                {head && (
+                  <circle cx={x} cy={y} r={DOT + 3.2} fill="none" stroke={fill} strokeWidth={1.4} />
+                )}
+                <circle
+                  cx={x}
+                  cy={y}
+                  r={tagged ? DOT + 1.4 : DOT}
+                  fill={tagged ? 'var(--bg)' : fill}
+                  stroke={fill}
+                  strokeWidth={tagged ? 2.4 : 1.6}
+                />
+              </g>
             )
           })}
         </svg>
@@ -173,11 +181,13 @@ export function GraphView({ graph, theme, query, selected, jump, onSelect, onMor
               <div key={commit.h} className={className} onClick={() => onSelect(commit.h)}>
                 <div className="gut">{newDay ? label : ''}</div>
                 <div />
-                <div className="msg">
-                  {commit.refs.map((ref) => (
-                    <span key={ref.k + ref.n} className={`ref ${ref.k}`}>{ref.n}</span>
-                  ))}
-                  {commit.s}
+                <div className="msg">{commit.s}</div>
+                <div className="refs">
+                  {commit.refs
+                    .filter((ref) => ref.k !== 'head')
+                    .map((ref) => (
+                      <span key={ref.k + ref.n} className={`ref ${ref.k}`}>{ref.n}</span>
+                    ))}
                 </div>
                 <div className="who">
                   <span className="ava" style={{ background: tint(commit.an) }}>
