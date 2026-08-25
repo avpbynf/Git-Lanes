@@ -156,10 +156,20 @@ pub struct Branch {
     pub upstream: Option<Upstream>,
 }
 
+/// A ref with nothing measured against it: a remote branch, or a tag.
+#[derive(Serialize)]
+pub struct PlainRef {
+    pub name: String,
+    pub head: String,
+    pub t: String,
+}
+
 #[derive(Serialize)]
 pub struct BranchList {
     pub base: Option<String>,
     pub branches: Vec<Branch>,
+    pub remotes: Vec<PlainRef>,
+    pub tags: Vec<PlainRef>,
 }
 
 #[derive(Serialize)]
@@ -528,6 +538,39 @@ struct RawBranch {
     track: String,
 }
 
+/// Name, the commit it stands on, and when: enough to find it in the graph.
+///
+/// An annotated tag is an object of its own, so the peeled name is what points
+/// at the commit; a lightweight one has none and points there itself.
+fn read_plain_refs(repo: &str, where_: &str) -> Result<Vec<PlainRef>, String> {
+    let format = format!(
+        "--format=%(refname:short){f}%(objectname){f}%(*objectname){f}%(creatordate:iso-strict)",
+        f = FIELD
+    );
+    let listing = git(
+        repo,
+        &["for-each-ref", "--sort=-creatordate", format.as_str(), where_],
+    )?;
+    let mut refs = Vec::new();
+    for line in listing.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let mut fields = line.splitn(4, FIELD);
+        let (Some(name), Some(tip), Some(peeled), Some(t)) =
+            (fields.next(), fields.next(), fields.next(), fields.next())
+        else {
+            continue;
+        };
+        refs.push(PlainRef {
+            name: name.to_string(),
+            head: if peeled.is_empty() { tip.to_string() } else { peeled.to_string() },
+            t: t.to_string(),
+        });
+    }
+    Ok(refs)
+}
+
 /// Local branches, most recently committed first, with their upstream.
 fn read_branch_refs(repo: &str) -> Result<Vec<RawBranch>, String> {
     let format = format!(
@@ -626,7 +669,18 @@ pub fn branches(repo: &str) -> Result<BranchList, String> {
             upstream,
         });
     }
-    Ok(BranchList { base: pick_base(&names, &head, None), branches })
+    // origin/HEAD is a pointer at another of them, never a branch of its own
+    let remotes = read_plain_refs(repo, "refs/remotes")?
+        .into_iter()
+        .filter(|one| !one.name.ends_with("/HEAD"))
+        .collect();
+
+    Ok(BranchList {
+        base: pick_base(&names, &head, None),
+        branches,
+        remotes,
+        tags: read_plain_refs(repo, "refs/tags")?,
+    })
 }
 
 /// One line about a repository, tolerant: a moved folder must not break the list.
