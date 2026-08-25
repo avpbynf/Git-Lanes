@@ -35,9 +35,13 @@ bun run build      writes web/dist, which the backend then serves
 bun run dev        the same build, rebuilt on every save
 ```
 
-The bundler is Bun's own, not Vite. Vite 8 bundles through a native rolldown module, and this
-machine's application control policy refuses to load unsigned native modules, so it cannot run
-here at all. Bun needs no such module, and the whole build takes under a tenth of a second.
+A fresh clone or worktree builds the page before it can build the window: `web/dist` and the
+derived icons are both ignored by git, and the Rust build embeds them. The icons come back with
+`cargo tauri icon src-tauri/icons/source.png`.
+
+The bundler is Bun's own, not Vite. Vite 8 bundles through a native rolldown module, and an
+application control policy can refuse to load an unsigned native module, which is enough to stop
+it dead. Bun needs no such module, and the whole build takes under a tenth of a second.
 
 ## What it needs
 
@@ -46,8 +50,9 @@ standard library.
 
 ## How it reads a repository
 
-It runs `git log`, `git show`, `git rev-list` and `git for-each-ref` and parses their output. **It never writes
-to a repository**, and it holds no lock, so it is safe to leave open while you work.
+It runs `git log`, `git show`, `git rev-list` and `git for-each-ref` and parses their output.
+**It never writes to a repository**, and it holds no lock, so it is safe to leave open while
+you work.
 
 The lane assignment is the whole trick, and it lives in `build_graph`. A lane holds the hash it
 is still waiting for. A commit takes the leftmost lane waiting for it, and the other lanes
