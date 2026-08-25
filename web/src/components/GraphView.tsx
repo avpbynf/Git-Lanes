@@ -15,6 +15,24 @@ const RULER = '11px "Segoe UI", system-ui, sans-serif'
 const ruler = document.createElement('canvas').getContext('2d')
 
 /**
+ * How wide one string is drawn, measured once however many rows carry it.
+ *
+ * Six thousand commits are a few dozen authors and a few hundred days, so all
+ * but the first row carrying a name answers from here. Measuring them one by
+ * one cost twenty six milliseconds of every read.
+ */
+const measured = new Map<string, number>()
+
+function widthOf(value: string): number {
+  const held = measured.get(value)
+  if (held !== undefined) return held
+  if (ruler) ruler.font = RULER
+  const width = ruler ? ruler.measureText(value).width : 0
+  measured.set(value, width)
+  return width
+}
+
+/**
  * How wide a column has to be to hold what it holds.
  *
  * Not the widest value but the width that share of them fit in: one long name
@@ -25,8 +43,7 @@ const ruler = document.createElement('canvas').getContext('2d')
  */
 function roomFor(values: string[], share: number): number {
   if (!ruler || !values.length) return 0
-  ruler.font = RULER
-  const widths = values.map((value) => ruler.measureText(value).width).sort((a, b) => a - b)
+  const widths = values.map(widthOf).sort((a, b) => a - b)
   return Math.ceil(widths[Math.min(widths.length - 1, Math.floor(widths.length * share))])
 }
 
