@@ -341,11 +341,10 @@ fn read_commits(
 fn build_graph(raw: Vec<Raw>) -> (Vec<Commit>, Vec<Edge>, usize) {
     let mut lanes: Vec<Option<String>> = Vec::new();
     let mut colors: Vec<usize> = Vec::new();
-    let mut next_color = 0usize;
 
-    let mut open_lane = |lanes: &mut Vec<Option<String>>,
-                         colors: &mut Vec<usize>,
-                         wanted: &str| -> usize {
+    let open_lane = |lanes: &mut Vec<Option<String>>,
+                     colors: &mut Vec<usize>,
+                     wanted: &str| -> usize {
         let free = lanes.iter().position(|lane| lane.is_none());
         let index = match free {
             Some(found) => found,
@@ -355,9 +354,22 @@ fn build_graph(raw: Vec<Raw>) -> (Vec<Commit>, Vec<Edge>, usize) {
                 lanes.len() - 1
             }
         };
+        // The colour is what tells two lanes apart, so a lane may not take one
+        // another live lane is already carrying. Counting up instead handed the
+        // same colour to two lanes drawn at once, on a fifth of the rows of a
+        // repository eight lanes wide.
+        let taken: Vec<usize> = lanes
+            .iter()
+            .enumerate()
+            .filter(|(other, lane)| *other != index && lane.is_some())
+            .map(|(other, _)| colors[other])
+            .collect();
+        let mut colour = 0usize;
+        while taken.contains(&colour) {
+            colour += 1;
+        }
+        colors[index] = colour;
         lanes[index] = Some(wanted.to_string());
-        colors[index] = next_color;
-        next_color += 1;
         index
     };
 
