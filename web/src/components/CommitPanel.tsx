@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
-import { fetchCommit, type Commit, type CommitDetail } from '../api'
+import {
+  fetchCommit, fetchWorking, WORKING,
+  type Commit, type CommitDetail, type WorkingDetail,
+} from '../api'
 import { usePanelWidth } from '../panel'
 import type { PanelMode } from '../settings'
 
@@ -27,6 +30,8 @@ interface Props {
 interface Answer {
   hash: string
   detail?: CommitDetail
+  /** Read instead of a commit when what was clicked is a worktree's uncommitted work. */
+  work?: WorkingDetail
   error?: string
 }
 
@@ -38,8 +43,12 @@ export function CommitPanel({ repo, hash, known, mode, onClose }: Props) {
   useEffect(() => {
     if (!hash) return
     let live = true
-    fetchCommit(repo, hash)
-      .then((detail) => live && setAnswer({ hash, detail }))
+    const folder = hash.startsWith(WORKING) ? hash.slice(WORKING.length) : null
+    const read: Promise<Answer> = folder
+      ? fetchWorking(repo, folder).then((work) => ({ hash, work }))
+      : fetchCommit(repo, hash).then((detail) => ({ hash, detail }))
+    read
+      .then((answer) => live && setAnswer(answer))
       .catch((err) => live && setAnswer({ hash, error: err instanceof Error ? err.message : String(err) }))
     return () => {
       live = false
@@ -63,10 +72,11 @@ export function CommitPanel({ repo, hash, known, mode, onClose }: Props) {
    */
   const held = hash ? answer : null
   const detail = held?.detail
+  const work = held?.work
   const [first, ...rest] = (detail?.body ?? '').split('\n')
   const body = rest.join('\n').trim()
   // nothing to hold on the first open, so the row that was clicked lends its subject
-  const title = held ? (detail ? first : undefined) : known?.s
+  const title = held ? (work ? 'uncommitted changes' : detail ? first : undefined) : known?.s
   const waiting = Boolean(hash) && held?.hash !== hash && slowFor === hash
 
   // asked for on a click, it is the click that brings it, and the cross that sends it away
@@ -76,7 +86,7 @@ export function CommitPanel({ repo, hash, known, mode, onClose }: Props) {
     <aside className={shown ? 'panel' : 'panel gone'} style={{ width }}>
       <div className="grip" {...grip} />
       <header>
-        <span className="strong">commit</span>
+        <span className="strong">{hash?.startsWith(WORKING) ? 'worktree' : 'commit'}</span>
         {mode === 'onClick' && (
           <>
             <span className="spacer" />
@@ -89,6 +99,31 @@ export function CommitPanel({ repo, hash, known, mode, onClose }: Props) {
         {held?.error && <p className="empty">{held.error}</p>}
         {title && <h2>{title}</h2>}
         {waiting && !held && <p className="empty">reading...</p>}
+        {work && (
+          <>
+            <p className="meta">
+              <code>{work.branch}</code> . {work.here ? 'the worktree being read' : work.path}
+              <br />
+              {work.staged} staged, {work.changed} changed, {work.untracked} untracked
+            </p>
+            {work.files.length === 0 ? (
+              <p className="empty">nothing left uncommitted here</p>
+            ) : (
+              work.files.map((file) => (
+                <div key={file.st + file.path} className="file">
+                  <span className="n">
+                    {file.st === 'untracked'
+                      ? <i className="a">new</i>
+                      : file.a === null
+                        ? 'bin'
+                        : <><i className="a">+{file.a}</i> <i className="d">-{file.d}</i></>}
+                  </span>
+                  <span className="p">{file.path}</span>
+                </div>
+              ))
+            )}
+          </>
+        )}
         {detail && (
           <>
             <p className="meta">

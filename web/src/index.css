@@ -312,6 +312,10 @@ button:disabled { cursor: default; color: var(--faint); }
 /* the commit being read, marked where the graph is rather than where the row is */
 .wires .picked { stroke: var(--text); stroke-width: 1; opacity: 0.55; }
 
+/* neither the dot nor the line down to the commit it was started from is drawn whole */
+.wires .work { stroke-dasharray: 2 2; }
+.wires .loose { stroke-dasharray: 3 3; opacity: 0.7; }
+
 /* its twin wears the same ring, broken, since it is the same change and not the same commit */
 .wires .twinned {
   stroke: var(--accent);
@@ -339,6 +343,9 @@ button:disabled { cursor: default; color: var(--faint); }
 
 .row:hover { background: var(--hover); }
 .row.sel { background: var(--sel); }
+/* work that is not history yet: it reads as a commit and says it is not one */
+.row.work .subject { font-style: italic; color: var(--dim); }
+
 /* the same change under another hash, lit with the row that found it */
 .row.twin { background: var(--hover); box-shadow: inset 2px 0 0 var(--accent); }
 /* a row and its dot fade together, and the wires never do: what is being looked

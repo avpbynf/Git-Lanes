@@ -20,7 +20,35 @@ export interface Commit {
   c: number
   /** The commit carrying this very change elsewhere: a replay of it, or its original. */
   tw?: string
+  /** Set on a row that is no commit at all: the uncommitted work of one worktree. */
+  wt?: Working
 }
+
+/** What one worktree holds that no commit does. */
+export interface Working {
+  path: string
+  branch: string
+  /** Whether this is the worktree being read, rather than another folder of the same history. */
+  here: boolean
+  staged: number
+  changed: number
+  untracked: number
+}
+
+export interface WorkingFile {
+  a: number | null
+  d: number | null
+  path: string
+  st: 'changed' | 'untracked'
+}
+
+export interface WorkingDetail extends Working {
+  head: string
+  files: WorkingFile[]
+}
+
+/** What a working row is called where a commit carries a hash. The path follows. */
+export const WORKING = 'wt:'
 
 /** One parent link. It leaves fr/fl, travels down lane rl, and lands on tr/tl. */
 export interface Edge {
@@ -198,6 +226,11 @@ export const fetchFingerprint = (repo: string | null) =>
   desktop
     ? (desktop('fingerprint', { repo }) as Promise<string>).then((fingerprint) => ({ fingerprint }))
     : get<{ fingerprint: string }>('/api/fingerprint', { repo: repo ?? undefined })
+
+export const fetchWorking = (repo: string | null, path: string) =>
+  desktop
+    ? (desktop('working', { repo, path }) as Promise<WorkingDetail>)
+    : get<WorkingDetail>('/api/working', { repo: repo ?? undefined, path })
 
 export const fetchCommit = (repo: string | null, hash: string) =>
   desktop

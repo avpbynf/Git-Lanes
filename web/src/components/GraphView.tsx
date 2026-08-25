@@ -9,6 +9,9 @@ const OVERSCAN = 10
 /** Why a history stops here rather than at its first commit. */
 const SHALLOW = 'the clone was cut here: git holds no parent for this commit'
 
+/** What a row of uncommitted work says of itself when there is no room to say it. */
+const WORK = 'what this worktree holds and no commit does'
+
 /** Why a branch is marked as done with, and why the same change is drawn twice. */
 const MERGED = 'a trunk already holds this branch, as these commits or as a replay of them'
 const TWIN = 'the same change under another hash, which is what a replay leaves behind'
@@ -263,7 +266,9 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
           <g className={run ? 'faint' : undefined}>
             {wires.map((edge) => {
               const stroke = colorOf(edge.c, theme)
-              const lit = run?.has(edge) ? ' lit' : ''
+              // what hangs off a working row is not history yet, and is drawn as not being it
+              const loose = graph.commits[edge.fr]?.wt ? ' loose' : ''
+              const lit = (run?.has(edge) ? ' lit' : '') + loose
               if (edge.tr === null) {
                 // the parent is below the window: a stub going nowhere
                 return (
@@ -293,6 +298,7 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
           {visible.map((commit) => {
             const fill = colorOf(commit.c, theme)
             const head = commit.refs.some((ref) => ref.k === 'head')
+            const work = Boolean(commit.wt)
             // a shallow marker is not a ref, so it does not ring the dot like one
             const tagged = commit.refs.some((ref) => ref.k !== 'head' && ref.k !== 'shallow')
             const x = laneX(commit.lane)
@@ -312,10 +318,11 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
                   <circle cx={x} cy={y} r={DOT + 3.2} fill="none" stroke={fill} strokeWidth={1.4} />
                 )}
                 <circle
+                  className={work ? 'work' : undefined}
                   cx={x}
                   cy={y}
-                  r={tagged ? DOT + 1.4 : DOT}
-                  fill={tagged ? 'var(--bg)' : fill}
+                  r={tagged || work ? DOT + 1.4 : DOT}
+                  fill={tagged || work ? 'var(--bg)' : fill}
                   stroke={fill}
                   strokeWidth={tagged ? 2.4 : 1.6}
                 />
@@ -339,6 +346,7 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
             // the topmost row has the bar above it, and a rule there reads as a thick border
             const className = [
               'row',
+              commit.wt ? 'work' : '',
               newDay && first + index > 0 ? 'day' : '',
               commit.h === selected ? 'sel' : '',
               commit.h === twin ? 'twin' : '',
@@ -354,7 +362,20 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
                 <div className="gut">{newDay ? label : ''}</div>
                 <div />
                 <div className="msg">
-                  <span className="subject">{commit.s}</span>
+                  <span className="subject" title={commit.wt ? WORK : undefined}>{commit.s}</span>
+                  {commit.wt && (
+                    <span className="refs">
+                      {commit.wt.staged > 0 && (
+                        <span className="mark">{commit.wt.staged} staged</span>
+                      )}
+                      {commit.wt.changed > 0 && (
+                        <span className="mark">{commit.wt.changed} changed</span>
+                      )}
+                      {commit.wt.untracked > 0 && (
+                        <span className="mark">{commit.wt.untracked} new</span>
+                      )}
+                    </span>
+                  )}
                   {carried.length > 0 && (
                     <span className="refs">
                       {carried.map((ref) => (
@@ -371,12 +392,20 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
                     </span>
                   )}
                 </div>
-                <div className="who" title={commit.an}>
-                  <span className="ava" style={{ background: tint(commit.an) }}>
-                    {commit.an.slice(0, 1).toUpperCase()}
-                  </span>
-                  {commit.an}
-                </div>
+                {commit.wt ? (
+                  // the folder, since a worktree of another folder is the one worth naming, and
+                  // the branch it sits on is already drawn on the commit below it
+                  <div className="who" title={commit.wt.path}>
+                    {commit.wt.here ? '' : commit.wt.path.split(/[\\/]/).pop()}
+                  </div>
+                ) : (
+                  <div className="who" title={commit.an}>
+                    <span className="ava" style={{ background: tint(commit.an) }}>
+                      {commit.an.slice(0, 1).toUpperCase()}
+                    </span>
+                    {commit.an}
+                  </div>
+                )}
                 <div className="when" title={commit.tw ? TWIN : when.toLocaleString()}>
                   {ago(when)}
                 </div>
