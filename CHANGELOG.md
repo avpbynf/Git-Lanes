@@ -1,0 +1,41 @@
+# Changelog
+
+What each version changed, written for somebody who runs GitLanes rather than builds it. Why a
+change was made is in the commit that made it.
+
+A version number here, the tag that releases it and the number the bar prints are one number: the
+release workflow refuses a tag that disagrees with the version in `src-tauri/Cargo.toml` rather
+than publishing an installer named after one thing and built from another.
+
+Everything is a pre-release while the version stays under `1.0.0`, and nothing here promises what
+the next one holds.
+
+## 0.1.0
+
+The first release, and an installer for it.
+
+- **The commit graph of a local repository, drawn the way GitLab draws it.** One column per
+  branch, an elbow where a branch opens and where it merges, dates down the left margin, and
+  branch and tag labels on the commits that carry them. The whole history is read at once, so
+  scrolling asks for nothing.
+
+- **A tree of what the repository holds**, on the left: the projects already opened, then the
+  local branches, the remote ones and the tags, each name filed under the folders it already
+  spells. A branch says how far ahead and behind it stands and whether it was ever pushed.
+  Clicking a ref goes to its tip, or bounds the graph to it when the menu says so.
+
+- **Two ways of narrowing, on purpose.** The text field dims what does not match, so the shape of
+  the graph stays readable while the eye looks for one commit in it; the author, the date and the
+  paths are given to git, which does not return what it leaves out.
+
+- **The commit last clicked**, on the right, with its message and the files it touched. The
+  arrows walk from one commit to the next, the graph rings the one being read, and the row under
+  the pointer lights the branch it belongs to.
+
+- **It never writes to a repository** and holds no lock, so it is safe to leave open while you
+  work. The page redraws when a ref moves and not on a timer, and a hidden tab asks nothing at
+  all.
+
+- **A window and a page, answering alike.** The installer carries the desktop window, which reads
+  git in Rust and needs nothing else installed. The same page runs in a browser over the Python
+  backend, which imports nothing outside the standard library.

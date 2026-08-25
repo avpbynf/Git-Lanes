@@ -66,6 +66,10 @@ readable from the page, and every layout claim in this repository was settled th
 That rule was written the day a lot was merged on the strength of a browser pass alone and did
 not compile.
 
+Every push runs those same three gates again, in `.github/workflows/build.yml`, on Windows and in
+one job because the Rust build embeds the page and the icons. What it adds is a machine nobody
+here has seen; it does not stand in for the pass before the push.
+
 A webview that is not on screen keeps running scripts but stops compositing. CSS transitions
 then never advance and scroll events are never delivered, so a panel reads as stuck and a
 virtualised list as frozen. Neither is a bug. Check `document.hidden` before believing either,
@@ -127,13 +131,10 @@ the window starts on.
 
 ## Writing here
 
-Commit messages are lower case, prefixed by the piece they touch: `feat(web)`, `fix(app)` for
-the Rust window, `feat(server)` for Python, `docs` for prose. One line saying what the change
-does, not what was wrong. A body when the why is not obvious from the diff, wrapped at seventy
-odd columns.
-
-A feature that lands in both backends is two commits, `server` first and `app` after, in the
-shape the history already shows.
+**CONTRIBUTING holds the branches, the commit subjects, the changelog and how a release goes
+out**, and it holds them once: `dev` is where work lands, `main` is what has been released, and a
+version leaves by a tag. What follows is the part about this codebase rather than about that
+process.
 
 Comments explain why, never what. Most of this codebase has none, and the ones it has are there
 because someone would otherwise undo the reason.
