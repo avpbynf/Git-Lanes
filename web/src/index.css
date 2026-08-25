@@ -182,13 +182,17 @@ button:disabled { cursor: default; color: var(--faint); }
 .icon {
   display: grid;
   place-items: center;
-  width: 26px;
+  width: 24px;
   height: 22px;
   padding: 0;
+  border: none;
+  background: none;
   color: var(--dim);
 }
 
-.icon:hover { color: var(--text); }
+/* no border to say it is a button, so the hover has to say it instead */
+.icon:hover { background: var(--hover); color: var(--text); }
+.icon:focus { outline: none; }
 
 .icon svg {
   width: 14px;

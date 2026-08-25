@@ -3,6 +3,7 @@ import { fetchBranches, type Branch, type BranchList, type PlainRef } from '../a
 import { ago } from '../lanes'
 import { usePanelWidth } from '../panel'
 import { countOf, tree, type Leaf, type Named, type Node } from '../refs'
+import { CLOSE, PIN } from './icons'
 
 const MIN_WIDTH = 200
 const WIDTH = 300
@@ -26,12 +27,6 @@ interface Answer {
   list?: BranchList
   error?: string
 }
-
-const PIN = (
-  <svg viewBox="0 0 16 16" aria-hidden="true">
-    <path d="M4.4 4.2h7.2M5.9 4.2v5.2M10.1 4.2v5.2M3.8 9.4h8.4M8 9.4v4.4" />
-  </svg>
-)
 
 /** How far a branch stands from its base, silent when the two are level. */
 function Divergence({ behind, ahead }: { behind: number; ahead: number }) {
@@ -186,7 +181,7 @@ export function RefsPanel({
         >
           {PIN}
         </button>
-        <button onClick={onClose}>close</button>
+        <button className="icon" title="close" onClick={onClose}>{CLOSE}</button>
       </header>
 
       <div className="hunt">
