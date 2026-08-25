@@ -10,6 +10,15 @@ than publishing an installer named after one thing and built from another.
 Nothing here promises what the next version holds, and nothing under `1.0.0` promises to hold
 still.
 
+## Unreleased
+
+- **Your own commands, on the commit you clicked.** A project's actions live in
+  `%APPDATA%\gitlanes\actions.json` and show up as buttons in the panel on the right: a build, a
+  deployment to a test instance, anything a command line can do. Each one runs in a worktree made
+  for that commit and removed afterwards, so the state being built is never the one you have open,
+  and the output arrives line by line while it runs. The window only, and never the Python
+  backend, which answers on a port any page in any browser can post to.
+
 ## 0.1.0
 
 The first release, and an installer for it.

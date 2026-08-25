@@ -19,10 +19,13 @@ above that file is written as if there were one backend. Break the symmetry and 
 in the browser and not in the window, or the reverse, and nothing says so until someone opens
 the other one.
 
-The one exception is a thing a browser genuinely cannot do, and `pick_folder` is the only one
-so far: there is no native folder dialog in a page. Such a command lives in Rust alone, and
-`api.ts` says so out loud with a flag the front end can ask about, the way `canPickFolder`
-does, so the page has somewhere else to go rather than a call that fails.
+**Two commands break that symmetry, and each for its own reason.** `pick_folder` is a thing a
+browser genuinely cannot do: there is no native folder dialog in a page. The action runner is a
+thing the HTTP backend must not do: it answers on `127.0.0.1`, where any page in any browser can
+post to it without ever reading the answer, so a route that ran a command there would be a build
+any website could start. Either way the command lives in Rust alone, and `api.ts` says so out
+loud with a flag the front end asks about, the way `canPickFolder` and `canRunActions` do, so the
+page has somewhere else to go rather than a call that fails.
 
 There are no Tauri JS packages. The window is driven through `window.__TAURI__` globals and
 commands this repository declares itself, in `src-tauri/src/main.rs`. Adding a Tauri plugin

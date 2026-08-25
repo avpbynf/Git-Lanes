@@ -81,6 +81,38 @@ which does not return what it leaves out.
 turned off in the menu, where the theme and what a click on a ref does also live. Escape clears
 the commit, then the filter.
 
+## Your own commands
+
+A project usually has one thing you want done to a version of it, and it is never the same thing
+twice: a mod built and dropped into a test instance, an application bundled from a branch, a
+script run against the state of one commit. So the tool holds none of that and runs yours instead.
+
+Commands live in `%APPDATA%\gitlanes\actions.json`, one list per repository, and the panel on the
+right shows them as buttons on whatever commit is open. `add an action` writes the file with an
+example in it and opens it.
+
+```json
+{
+  "C:\\Users\\you\\code\\your-mod": [
+    {
+      "name": "build and drop in the test instance",
+      "run": "gradlew.bat build && copy build\\libs\\*.jar C:\\mc\\test\\mods\\"
+    }
+  ]
+}
+```
+
+**A command runs on the commit you clicked, in a worktree made for it and removed afterwards.**
+That is the whole reason this is worth having: building the state of a commit that is not the one
+checked out would otherwise mean checking it out, and that disturbs the work the window is open
+beside. `{worktree}` is that folder, and `{repo}`, `{sha}`, `{short}` and `{ref}` are there too;
+`cwd` says where to run, the worktree by default. The output arrives line by line in the panel
+while it runs, and `stop` kills the command and everything it started.
+
+The file is yours and lives beside the list of repositories, never in a repository: a project you
+cloned cannot bring its own commands with it. And a command runs in the window only, never through
+the Python backend, which answers on a port any page in any browser can post to.
+
 ## How it reads a repository
 
 The lane assignment is the whole trick, and it lives in `build_graph`. A lane holds the hash it is
