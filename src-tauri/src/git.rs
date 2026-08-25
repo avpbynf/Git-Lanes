@@ -244,7 +244,7 @@ fn read_commits(
     let limit_arg = limit.to_string();
     // a scope must spell refs/... in full, or it is no scope: that is what keeps a
     // ref called -f a ref and never an option. A tag starts a history as a branch does.
-    let wanted = scope
+    let bound = scope
         .strip_prefix(REF)
         .filter(|name| name.starts_with("refs/"));
     let author_arg = some_arg("--author=", &filters.author);
@@ -257,7 +257,7 @@ fn read_commits(
         .collect();
     let sort = if order == "topo" { "--topo-order" } else { "--date-order" };
     let mut args = vec!["log", sort, format.as_str()];
-    if let Some(reference) = wanted {
+    if let Some(reference) = bound {
         args.push(reference);
     } else {
         // not --all: that one drags in refs/stash and the note refs
