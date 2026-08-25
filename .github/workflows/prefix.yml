@@ -32,7 +32,7 @@ jobs:
 
     steps:
       - name: Take both long-lived branches
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # The whole history, since the question is about an ancestry reaching back to the first
           # commit. A shallow clone answers "not an ancestor" for a graft it cannot see.
