@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fetchRepos, type Branch, type Order, type RepoEntry } from './api'
 import { ago } from './lanes'
-import { ALL, readScope } from './scope'
+import { ALL, branchOf, readScope } from './scope'
 import { readSettings, writeSettings, type Settings } from './settings'
 import { useGraph } from './useGraph'
 import { BranchMenu } from './components/BranchMenu'
@@ -113,7 +113,16 @@ export default function App() {
       writeSettings(next)
       return next
     })
-  }, [])
+    // going back to one global view releases the branch that was bounding it, which
+    // otherwise stays with no control left to undo it
+    if (patch.branchClick === 'reveal') {
+      const held = branchOf(scope)
+      if (held) setPicked(held)
+      setLimit(PAGE)
+      setScope(ALL)
+      localStorage.setItem('scope', ALL)
+    }
+  }, [scope])
 
   /**
    * One more page, once the page being read has landed in full.
@@ -126,7 +135,12 @@ export default function App() {
     setLimit((held) => (graph.commits.length >= held ? held + PAGE : held))
   }, [graph])
 
-  const status = error ?? (graph ? `${graph.commits.length}${graph.truncated ? '+' : ''} commits` : 'reading...')
+  // the row that was clicked, which already holds the subject the panel opens with
+  const chosen = useMemo(
+    () => (selected ? graph?.commits.find((commit) => commit.h === selected) ?? null : null),
+    [graph, selected],
+  )
+
   const freshness = updatedAt ? `refresh, read ${ago(new Date(updatedAt))}` : 'refresh'
 
   return (
@@ -164,7 +178,8 @@ export default function App() {
         </button>
         <button className="icon" title={freshness} onClick={() => void reload()}>{REFRESH}</button>
         <SettingsMenu settings={settings} onChange={change} />
-        <span className={error ? 'status bad' : 'status'}>{status}</span>
+        {/* nothing to say while it works: only a failure is worth a line in the bar */}
+        {error && <span className="status bad">{error}</span>}
         <WindowControls />
       </header>
 
@@ -184,6 +199,7 @@ export default function App() {
         <CommitPanel
           repo={current}
           hash={selected}
+          known={chosen}
           mode={settings.panel}
           onClose={() => setSelected(null)}
         />

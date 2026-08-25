@@ -1,13 +1,18 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
-import { fetchCommit, type CommitDetail } from '../api'
+import { fetchCommit, type Commit, type CommitDetail } from '../api'
 import type { PanelMode } from '../settings'
 
 const MIN_WIDTH = 320
 const WIDTH = 440
 
+/** How long a read may take before it is worth saying that it is running. */
+const PATIENCE = 250
+
 interface Props {
   repo: string | null
   hash: string | null
+  /** What the graph already knows of the commit, so the panel answers the click at once. */
+  known: Commit | null
   mode: PanelMode
   onClose: () => void
 }
@@ -23,8 +28,9 @@ function heldWidth(): number {
   return held >= MIN_WIDTH ? held : WIDTH
 }
 
-export function CommitPanel({ repo, hash, mode, onClose }: Props) {
+export function CommitPanel({ repo, hash, known, mode, onClose }: Props) {
   const [answer, setAnswer] = useState<Answer | null>(null)
+  const [slowFor, setSlowFor] = useState<string | null>(null)
   const [width, setWidth] = useState(heldWidth)
   const sizing = useRef(false)
 
@@ -37,6 +43,13 @@ export function CommitPanel({ repo, hash, mode, onClose }: Props) {
     return () => {
       live = false
     }
+  }, [repo, hash])
+
+  // a read this short is not worth announcing: saying so and unsaying it is the flicker
+  useEffect(() => {
+    if (!hash) return
+    const timer = setTimeout(() => setSlowFor(hash), PATIENCE)
+    return () => clearTimeout(timer)
   }, [repo, hash])
 
   // the pointer is captured, so the drag survives leaving the few pixels it started on
@@ -60,8 +73,11 @@ export function CommitPanel({ repo, hash, mode, onClose }: Props) {
   // the answer carries its own hash, so a stale one never shows under a new commit
   const shown = answer?.hash === hash ? answer : null
   const detail = shown?.detail
-  const [title, ...rest] = (detail?.body ?? '').split('\n')
+  const [first, ...rest] = (detail?.body ?? '').split('\n')
   const body = rest.join('\n').trim()
+  // the subject is already on screen in the row that was clicked, so it lands with the click
+  const title = detail ? first : known?.s
+  const waiting = Boolean(hash) && !shown && slowFor === hash
 
   const className = ['panel', mode, hash ? 'open' : ''].filter(Boolean).join(' ')
 
@@ -76,10 +92,10 @@ export function CommitPanel({ repo, hash, mode, onClose }: Props) {
       <div className="panel-body">
         {!hash && <p className="empty">pick a commit in the graph</p>}
         {hash && shown?.error && <p className="empty">{shown.error}</p>}
-        {hash && !shown && <p className="empty">reading...</p>}
+        {title && <h2>{title}</h2>}
+        {waiting && <p className="empty">reading...</p>}
         {detail && (
           <>
-            <h2>{title}</h2>
             <p className="meta">
               <code>{detail.h.slice(0, 12)}</code> . {detail.an} &lt;{detail.ae}&gt;
               <br />
