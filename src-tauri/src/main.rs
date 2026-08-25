@@ -88,6 +88,22 @@ async fn repos() -> Result<RepoList, String> {
     .await
 }
 
+/// A folder chosen in a window of the system's own, or nothing if it was dismissed.
+///
+/// It is not told which window owns it, so it opens beside the app rather than
+/// on top of it. Owning it means handing rfd a raw window handle, which is more
+/// plumbing than the difference is worth for now.
+#[tauri::command]
+async fn pick_folder() -> Result<Option<String>, String> {
+    off_thread(|| {
+        Ok(rfd::FileDialog::new()
+            .set_title("A repository, or a folder holding some")
+            .pick_folder()
+            .map(|folder| folder.to_string_lossy().into_owned()))
+    })
+    .await
+}
+
 #[tauri::command]
 async fn open_repo(path: String) -> Result<RepoEntry, String> {
     off_thread(move || {
@@ -151,6 +167,7 @@ fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             repos,
+            pick_folder,
             open_repo,
             close_repo,
             discover,
