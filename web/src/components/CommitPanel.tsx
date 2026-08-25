@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
-  fetchCommit, fetchWorking, WORKING,
+  canRunActions, fetchCommit, fetchWorking, WORKING,
   type Commit, type CommitDetail, type WorkingDetail,
 } from '../api'
+import { useActions } from '../actions'
 import { usePanelWidth } from '../panel'
 import type { PanelMode } from '../settings'
 
@@ -39,6 +40,13 @@ export function CommitPanel({ repo, hash, known, mode, onClose }: Props) {
   const [answer, setAnswer] = useState<Answer | null>(null)
   const [slowFor, setSlowFor] = useState<string | null>(null)
   const { width, grip } = usePanelWidth('panel', WIDTH, MIN_WIDTH, 'right')
+  const doing = useActions(repo)
+  const tail = useRef<HTMLDivElement>(null)
+
+  // a build says a lot and what is being waited for is the last line of it
+  useEffect(() => {
+    tail.current?.scrollIntoView({ block: 'end' })
+  }, [doing.lines, doing.ended])
 
   useEffect(() => {
     if (!hash) return
@@ -99,6 +107,50 @@ export function CommitPanel({ repo, hash, known, mode, onClose }: Props) {
         {held?.error && <p className="empty">{held.error}</p>}
         {title && <h2>{title}</h2>}
         {waiting && !held && <p className="empty">reading...</p>}
+        {canRunActions && hash && !hash.startsWith(WORKING) && (
+          <div className="doings">
+            {doing.actions.map((action, index) => (
+              <button
+                key={action.name}
+                disabled={Boolean(doing.running)}
+                title={action.run}
+                onClick={() => {
+                  const refname = known?.refs.find((ref) => ref.k === 'local')?.n ?? ''
+                  void doing.start(index, hash, refname)
+                }}
+              >
+                {action.name}
+              </button>
+            ))}
+            <button className="quiet" onClick={() => void doing.edit()}>
+              {doing.actions.length ? 'edit' : 'add an action'}
+            </button>
+            {doing.running && (
+              <button className="quiet" onClick={() => void doing.stop()}>stop</button>
+            )}
+          </div>
+        )}
+
+        {(doing.lines.length > 0 || doing.ended) && (
+          <div className="log">
+            <p className={doing.ended && doing.ended.code !== 0 ? 'empty bad' : 'empty'}>
+              {doing.running
+                ? `${doing.running.name}, on ${doing.running.sha.slice(0, 7)}`
+                : doing.ended?.message}
+              <button className="quiet" onClick={doing.clear}>clear</button>
+            </p>
+            <pre>
+              {doing.lines.map((line, index) => (
+                <span key={index} className={line.bad ? 'bad' : undefined}>
+                  {line.text}
+                  {'\n'}
+                </span>
+              ))}
+              <div ref={tail} />
+            </pre>
+          </div>
+        )}
+
         {work && (
           <>
             <p className="meta">

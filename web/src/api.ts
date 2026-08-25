@@ -211,6 +211,66 @@ export const fetchGraph = (repo: string | null, scope: Scope, order: Order, filt
         ...filters,
       })
 
+/** One command a project can be asked to run, as the user's own file spells it. */
+export interface Action {
+  name: string
+  run: string
+  cwd?: string
+}
+
+export interface ActionLine {
+  text: string
+  /** What the command wrote to its error stream, which is where a build says why. */
+  bad: boolean
+}
+
+export interface ActionEnded {
+  code: number
+  message: string
+}
+
+/**
+ * Running a project's commands is the window's alone, and deliberately so.
+ *
+ * The Python backend answers on 127.0.0.1, where any page open in any browser can post to it
+ * without ever reading the answer: a route that ran a command there would be a build any website
+ * could start. In the window the same code sits behind a command nothing outside it can reach.
+ */
+export const canRunActions = insideApp
+
+export const fetchActions = (repo: string | null) =>
+  desktop ? (desktop('project_actions', { repo }) as Promise<Action[]>) : Promise.resolve([])
+
+export const runAction = (repo: string | null, index: number, sha: string, refname: string) =>
+  desktop
+    ? (desktop('run_action', { repo, index, sha, refname }) as Promise<void>)
+    : Promise.reject(new Error('a command runs in the window, not in a page'))
+
+export const stopAction = () =>
+  desktop ? (desktop('stop_action') as Promise<void>) : Promise.resolve()
+
+export const editActions = (repo: string | null) =>
+  desktop ? (desktop('edit_actions', { repo }) as Promise<string>) : Promise.resolve('')
+
+type Unlisten = () => void
+type Listen = (name: string, handler: (event: { payload: unknown }) => void) => Promise<Unlisten>
+
+const events = (globalThis as { __TAURI__?: { event?: { listen?: Listen } } }).__TAURI__?.event
+  ?.listen
+
+/** The output of a run, as it lands. Answers what to call to stop listening. */
+export async function watchAction(
+  onLine: (line: ActionLine) => void,
+  onEnd: (ended: ActionEnded) => void,
+): Promise<Unlisten> {
+  if (!events) return () => {}
+  const held = await Promise.all([
+    events('action-line', (event) => onLine(event.payload as ActionLine)),
+    events('action-ended', (event) => onEnd(event.payload as ActionEnded)),
+  ])
+  return () => held.forEach((stop) => stop())
+}
+
 /** Pick a folder in a window of the system's own. Only the desktop has one. */
 export const pickFolder = () =>
   desktop ? (desktop('pick_folder') as Promise<string | null>) : Promise.resolve(null)

@@ -214,6 +214,69 @@ button:disabled { cursor: default; color: var(--faint); }
   box-shadow: 0 8px 24px #0006;
 }
 
+/* what a project can be asked to do with a commit, and what it says while doing it */
+
+.doings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.doings button {
+  font-size: 11px;
+  padding: 3px 8px;
+}
+
+.doings button.quiet {
+  background: none;
+  border-color: var(--line);
+  color: var(--dim);
+}
+
+.doings button.quiet:hover { color: var(--text); }
+
+.log {
+  margin-top: 8px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.log .empty {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  text-align: left;
+  padding: 0 0 6px;
+}
+
+.log .empty.bad { color: var(--del); }
+
+.log .empty button {
+  background: none;
+  border: none;
+  color: var(--faint);
+  font-size: 11px;
+  padding: 0;
+}
+
+.log .empty button:hover { color: var(--text); }
+
+.log pre {
+  max-height: 40vh;
+  overflow: auto;
+  scrollbar-color: var(--line) transparent;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--dim);
+}
+
+/* what the command wrote to its error stream, which a build uses for more than errors */
+.log pre .bad { color: var(--del); }
+
 /* the graph itself */
 
 /* what narrows the reading, on its own row: the bar above it moves the window,
