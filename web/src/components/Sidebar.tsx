@@ -101,6 +101,7 @@ export function Sidebar({
   const [found, setFound] = useState<{ root: string; hits: RepoEntry[] } | null>(null)
   const [trouble, setTrouble] = useState<string | null>(null)
   const read = useRef('')
+  const ticket = useRef(0)
 
   /**
    * The tree is read once per repository, and again when that repository moves.
@@ -118,13 +119,23 @@ export function Sidebar({
     read.current = asked
     if (covered) return
 
-    let live = true
+    /*
+     * A ticket, and deliberately no cleanup.
+     *
+     * The run that skips would otherwise cancel the read the run before it
+     * started, since both fire on one switch. The tree then never arrives, and
+     * only for a repository whose graph is read faster than its tree, which is
+     * the small ones. Only a newer read may retire an older one.
+     */
+    const mine = ++ticket.current
     fetchBranches(current)
-      .then((list) => live && setAnswer({ repo: current, list }))
-      .catch((err) => live && setAnswer({ repo: current, error: err instanceof Error ? err.message : String(err) }))
-    return () => {
-      live = false
-    }
+      .then((list) => {
+        if (mine === ticket.current) setAnswer({ repo: current, list })
+      })
+      .catch((err) => {
+        if (mine !== ticket.current) return
+        setAnswer({ repo: current, error: err instanceof Error ? err.message : String(err) })
+      })
   }, [shown, current, fingerprint])
 
   const { width, grip } = usePanelWidth('refs', WIDTH, MIN_WIDTH, 'left')
