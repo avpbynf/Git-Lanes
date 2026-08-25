@@ -105,8 +105,6 @@ button:disabled { cursor: default; color: var(--faint); }
   flex: none;
 }
 
-.bar input[type='search'] { width: 210px; }
-
 /* the whole bar moves the window, so its own room must survive a crowd:
    nothing here stretches or wraps, and the gap in the middle keeps a
    grabbable minimum whatever the repository turns out to be called */
@@ -262,6 +260,46 @@ button:disabled { cursor: default; color: var(--faint); }
 .found { margin-top: 4px; }
 
 /* the graph itself */
+
+/* what narrows the reading, on its own row: the bar above it moves the window,
+   and piling both on one line is what made it too crowded to read */
+
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--line);
+  flex: none;
+}
+
+.filters > * { flex: none; }
+.filters .spacer { flex: 1; }
+.filters .paths { width: 190px; }
+
+/* the field and the two switches that read it, built as one control */
+.field { display: flex; align-items: stretch; }
+.field input { width: 240px; border-radius: 4px 0 0 4px; }
+.field input.bad { border-color: var(--del); }
+
+.mode {
+  width: 26px;
+  padding: 0;
+  margin-left: -1px;
+  border-radius: 0;
+  color: var(--faint);
+  font-size: 11px;
+}
+
+.mode:last-child { border-radius: 0 4px 4px 0; }
+.mode:hover { color: var(--text); }
+
+.mode.on {
+  position: relative;
+  background: var(--sel);
+  border-color: var(--accent);
+  color: var(--text);
+}
 
 /* the graph and the commit panel share whatever the bar leaves */
 
@@ -498,12 +536,7 @@ button:disabled { cursor: default; color: var(--faint); }
 /* the settings menu */
 
 .settings { position: relative; }
-
-.settings .drop {
-  left: auto;
-  right: 0;
-  width: 340px;
-}
+.settings .drop { width: 340px; }
 
 .opt {
   display: flex;

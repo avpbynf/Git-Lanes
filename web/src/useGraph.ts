@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { fetchFingerprint, fetchGraph, type Graph, type Order, type Scope } from './api'
+import { fetchFingerprint, fetchGraph, type Filters, type Graph, type Order, type Scope } from './api'
 
 const REF_POLL = 2500
 const FULL_RELOAD = 10000
@@ -26,7 +26,13 @@ interface Answer {
  * Only the last read asked for is allowed to answer, so a slow one landing
  * after a newer one never shortens the graph back.
  */
-export function useGraph(repo: string | null, scope: Scope, limit: number, order: Order) {
+export function useGraph(
+  repo: string | null,
+  scope: Scope,
+  limit: number,
+  order: Order,
+  filters: Filters,
+) {
   const key = `${repo ?? ''}|${scope}`
   const [answer, setAnswer] = useState<Answer | null>(null)
   const fingerprint = useRef<string | null>(null)
@@ -35,7 +41,7 @@ export function useGraph(repo: string | null, scope: Scope, limit: number, order
   const load = useCallback(async () => {
     const mine = ++ticket.current
     try {
-      const graph = await fetchGraph(repo, scope, limit, order)
+      const graph = await fetchGraph(repo, scope, limit, order, filters)
       if (mine !== ticket.current) return
       fingerprint.current = graph.fingerprint
       setAnswer({ key, graph, at: Date.now() })
@@ -43,7 +49,7 @@ export function useGraph(repo: string | null, scope: Scope, limit: number, order
       if (mine !== ticket.current) return
       setAnswer({ key, error: err instanceof Error ? err.message : String(err), at: Date.now() })
     }
-  }, [repo, scope, limit, order, key])
+  }, [repo, scope, limit, order, filters, key])
 
   useEffect(() => {
     // the state lands after the fetch resolves, never synchronously here

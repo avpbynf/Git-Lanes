@@ -100,6 +100,26 @@ export type Scope = string
  */
 export type Order = 'date' | 'topo'
 
+/**
+ * What narrows the read, beyond the refs it starts from.
+ *
+ * These go to git, so they remove commits rather than dim them: what is
+ * excluded never comes back to be dimmed. The text filter above them is the
+ * other kind, and it stays in the browser.
+ */
+export interface Filters {
+  author: string
+  /** Anything git reads as a date, so `7 days ago` as much as `2026-08-01`. */
+  since: string
+  /** Comma separated, and each one is a path git matches from the root. */
+  paths: string
+}
+
+export const NO_FILTERS: Filters = { author: '', since: '', paths: '' }
+
+export const filtering = (filters: Filters) =>
+  Boolean(filters.author || filters.since || filters.paths)
+
 async function get<T>(path: string, params: Record<string, string | number | undefined> = {}): Promise<T> {
   const url = new URL(path, location.origin)
   for (const [key, value] of Object.entries(params)) {
@@ -135,10 +155,16 @@ const desktop = (globalThis as { __TAURI__?: { core?: { invoke?: Invoke } } })._
 
 export const insideApp = Boolean(desktop)
 
-export const fetchGraph = (repo: string | null, scope: Scope, limit: number, order: Order) =>
+export const fetchGraph = (
+  repo: string | null,
+  scope: Scope,
+  limit: number,
+  order: Order,
+  filters: Filters,
+) =>
   desktop
-    ? (desktop('graph', { repo, scope, limit, order }) as Promise<Graph>)
-    : get<Graph>('/api/graph', { repo: repo ?? undefined, scope, limit, order })
+    ? (desktop('graph', { repo, scope, limit, order, filters }) as Promise<Graph>)
+    : get<Graph>('/api/graph', { repo: repo ?? undefined, scope, limit, order, ...filters })
 
 export const fetchBranches = (repo: string | null) =>
   desktop

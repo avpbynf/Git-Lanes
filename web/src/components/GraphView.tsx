@@ -19,24 +19,17 @@ const REACH = ROW * 100
 interface Props {
   graph: Graph
   theme: Theme
-  query: string
+  /** What the text filter keeps lit. Everything else is dimmed, never removed. */
+  match: (commit: Commit) => boolean
+  /** Whether git was asked to leave commits out, which changes what nothing means. */
+  narrowed: boolean
   selected: string | null
   jump: { h: string; n: number } | null
   onSelect: (hash: string) => void
   onMore: () => void
 }
 
-function matches(commit: Commit, needle: string): boolean {
-  if (!needle) return true
-  return (
-    commit.s.toLowerCase().includes(needle) ||
-    commit.an.toLowerCase().includes(needle) ||
-    commit.h.startsWith(needle) ||
-    commit.refs.some((ref) => ref.n.toLowerCase().includes(needle))
-  )
-}
-
-export function GraphView({ graph, theme, query, selected, jump, onSelect, onMore }: Props) {
+export function GraphView({ graph, theme, match, narrowed, selected, jump, onSelect, onMore }: Props) {
   const scroller = useRef<HTMLDivElement>(null)
   const [scrollTop, setScrollTop] = useState(0)
   const [viewport, setViewport] = useState(800)
@@ -98,7 +91,6 @@ export function GraphView({ graph, theme, query, selected, jump, onSelect, onMor
   const windowTop = first * ROW
   const windowHeight = Math.max((last - first) * ROW, 0)
   const width = graphWidth(graph.lanes)
-  const needle = query.trim().toLowerCase()
 
   const visible = graph.commits.slice(first, last)
   const wires = graph.edges.filter((edge) => {
@@ -107,7 +99,15 @@ export function GraphView({ graph, theme, query, selected, jump, onSelect, onMor
   })
 
   if (count === 0) {
-    return <div className="scroller"><p className="empty">No commit in this repository yet.</p></div>
+    return (
+      <div className="scroller">
+        <p className="empty">
+          {narrowed
+            ? 'no commit answers these filters'
+            : 'no commit in this repository yet'}
+        </p>
+      </div>
+    )
   }
 
   return (
@@ -182,7 +182,7 @@ export function GraphView({ graph, theme, query, selected, jump, onSelect, onMor
               'row',
               newDay && first + index > 0 ? 'day' : '',
               commit.h === selected ? 'sel' : '',
-              matches(commit, needle) ? '' : 'faded',
+              match(commit) ? '' : 'faded',
             ].filter(Boolean).join(' ')
             return (
               <div key={commit.h} className={className} onClick={() => onSelect(commit.h)}>

@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { fetchRepos, type Branch, type Order, type RepoEntry } from './api'
+import {
+  fetchRepos, filtering, NO_FILTERS,
+  type Branch, type Filters, type Order, type RepoEntry,
+} from './api'
 import { ago } from './lanes'
+import { searching } from './search'
 import { ALL, branchOf, readScope } from './scope'
 import { readSettings, writeSettings, type Settings } from './settings'
 import { useGraph } from './useGraph'
 import { BranchMenu } from './components/BranchMenu'
 import { CommitPanel } from './components/CommitPanel'
+import { FilterBar } from './components/FilterBar'
 import { GraphView } from './components/GraphView'
 import { RepoPicker } from './components/RepoPicker'
 import { SettingsMenu } from './components/SettingsMenu'
@@ -15,27 +20,6 @@ import { dragProps } from './window'
 /** How many commits a read asks for, and how many the next one adds. */
 const PAGE = 400
 
-const REFRESH = (
-  <svg viewBox="0 0 16 16" aria-hidden="true">
-    <path d="M13.6 8a5.6 5.6 0 1 1-1.7-4" />
-    <path d="M13.9 1.6v3h-3" />
-  </svg>
-)
-
-const BY_DATE = (
-  <svg viewBox="0 0 16 16" aria-hidden="true">
-    <path d="M2.6 3.6h10.8M2.6 8h7M2.6 12.4h3.4" />
-  </svg>
-)
-
-const BY_BRANCH = (
-  <svg viewBox="0 0 16 16" aria-hidden="true">
-    <path d="M5.2 4.6v7.6M5.2 8.4h3.2a2.4 2.4 0 0 0 2.4-2.4V4.6" />
-    <circle cx="5.2" cy="13.6" r="1.4" />
-    <circle cx="10.8" cy="3.2" r="1.4" />
-  </svg>
-)
-
 export default function App() {
   const [repos, setRepos] = useState<RepoEntry[]>([])
   const [current, setCurrent] = useState<string | null>(() => localStorage.getItem('repo'))
@@ -44,7 +28,11 @@ export default function App() {
   const [order, setOrder] = useState<Order>(() =>
     localStorage.getItem('order') === 'topo' ? 'topo' : 'date',
   )
+  // a narrowing that outlived the session would hide commits nobody asked it to hide
+  const [filters, setFilters] = useState<Filters>(NO_FILTERS)
   const [query, setQuery] = useState('')
+  const [regex, setRegex] = useState(() => localStorage.getItem('regex') === 'yes')
+  const [matchCase, setMatchCase] = useState(() => localStorage.getItem('case') === 'yes')
   const [selected, setSelected] = useState<string | null>(null)
   const [jump, setJump] = useState<{ h: string; n: number } | null>(null)
   const [picked, setPicked] = useState<string | null>(null)
@@ -65,7 +53,7 @@ export default function App() {
   // oxlint-disable-next-line react/set-state-in-effect
   useEffect(() => { void refreshRepos() }, [refreshRepos])
 
-  const { graph, error, updatedAt, reload } = useGraph(current, scope, limit, order)
+  const { graph, error, updatedAt, reload } = useGraph(current, scope, limit, order, filters)
 
   useEffect(() => { document.documentElement.dataset.theme = settings.theme }, [settings.theme])
   useEffect(() => { if (current) localStorage.setItem('repo', current) }, [current])
@@ -92,6 +80,8 @@ export default function App() {
     setLimit(PAGE)
     setScope(ALL)
     localStorage.setItem('scope', ALL)
+    // authors and paths belong to the repository that was open, not to the next one
+    setFilters(NO_FILTERS)
     setCurrent(path)
   }
 
@@ -105,6 +95,37 @@ export default function App() {
     setPicked(branch.name)
     setSelected(branch.head)
     setJump((held) => ({ h: branch.head, n: (held?.n ?? 0) + 1 }))
+  }
+
+  /**
+   * A commit picked in the graph, and the branch it ends if it ends one.
+   *
+   * Clicking the tip of a branch is the same gesture as clicking that branch in
+   * the list, so the bar answers it the same way. When several branches stand on
+   * the commit, the one already named wins, then the one HEAD is on.
+   */
+  const choose = (hash: string) => {
+    setSelected(hash)
+    const commit = graph?.commits.find((one) => one.h === hash)
+    const ends = commit?.refs.filter((ref) => ref.k === 'local').map((ref) => ref.n) ?? []
+    if (!ends.length || ends.includes(picked ?? '')) return
+    setPicked(ends.find((name) => name === graph?.branch) ?? ends[0])
+  }
+
+  const narrow = (patch: Partial<Filters>) => {
+    setLimit(PAGE)
+    setFilters((held) => ({ ...held, ...patch }))
+  }
+
+  const mode = (patch: { regex?: boolean; matchCase?: boolean }) => {
+    if (patch.regex !== undefined) {
+      setRegex(patch.regex)
+      localStorage.setItem('regex', patch.regex ? 'yes' : 'no')
+    }
+    if (patch.matchCase !== undefined) {
+      setMatchCase(patch.matchCase)
+      localStorage.setItem('case', patch.matchCase ? 'yes' : 'no')
+    }
   }
 
   const change = useCallback((patch: Partial<Settings>) => {
@@ -141,11 +162,20 @@ export default function App() {
     [graph, selected],
   )
 
+  // who wrote what is on screen, which is the only list of authors worth offering
+  const authors = useMemo(
+    () => [...new Set(graph?.commits.map((commit) => commit.an) ?? [])].sort(),
+    [graph],
+  )
+
+  const found = useMemo(() => searching(query, regex, matchCase), [query, regex, matchCase])
+
   const freshness = updatedAt ? `refresh, read ${ago(new Date(updatedAt))}` : 'refresh'
 
   return (
     <>
       <header className="bar" {...dragProps}>
+        <SettingsMenu settings={settings} onChange={change} />
         <RepoPicker repos={repos} current={current} onPick={pick} onChanged={refreshRepos} />
         <BranchMenu
           repo={current}
@@ -158,40 +188,42 @@ export default function App() {
           onReveal={reveal}
         />
         <span className="spacer" />
-        <input
-          ref={search}
-          type="search"
-          value={query}
-          placeholder="filter: text, author, hash, ref"
-          onChange={(event) => setQuery(event.target.value)}
-        />
-        <button
-          className="icon"
-          title={order === 'date' ? 'read down the calendar' : 'each branch kept whole'}
-          onClick={() => {
-            const next: Order = order === 'date' ? 'topo' : 'date'
-            setOrder(next)
-            localStorage.setItem('order', next)
-          }}
-        >
-          {order === 'date' ? BY_DATE : BY_BRANCH}
-        </button>
-        <button className="icon" title={freshness} onClick={() => void reload()}>{REFRESH}</button>
-        <SettingsMenu settings={settings} onChange={change} />
         {/* nothing to say while it works: only a failure is worth a line in the bar */}
         {error && <span className="status bad">{error}</span>}
         <WindowControls />
       </header>
+
+      <FilterBar
+        search={search}
+        query={query}
+        onQuery={setQuery}
+        regex={regex}
+        matchCase={matchCase}
+        broken={found.broken}
+        onMode={mode}
+        authors={authors}
+        filters={filters}
+        onFilters={narrow}
+        order={order}
+        onOrder={() => {
+          const next: Order = order === 'date' ? 'topo' : 'date'
+          setOrder(next)
+          localStorage.setItem('order', next)
+        }}
+        freshness={freshness}
+        onReload={() => void reload()}
+      />
 
       <main className="body">
         {graph
           ? <GraphView
               graph={graph}
               theme={settings.theme}
-              query={query}
+              match={found.match}
+              narrowed={filtering(filters)}
               selected={selected}
               jump={jump}
-              onSelect={setSelected}
+              onSelect={choose}
               onMore={more}
             />
           : <p className="empty">{error ?? 'reading the repository...'}</p>}

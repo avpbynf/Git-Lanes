@@ -18,10 +18,16 @@ The page redraws on its own whenever a ref moves, and every ten seconds in any c
 while its tab is hidden and catches up when you come back to it.
 
 Click a commit for its message and the files it touched. The panel that opens is resized by
-its left edge, and keeps that width. `/` focuses the filter, which dims what does not match
-instead of hiding it, so the shape of the graph stays readable. Escape closes the panel, then
-clears the filter. The repository name on the left opens the picker, which switches between
-the repositories already opened and scans a folder for new ones.
+its left edge, and keeps that width. Escape closes it, then clears the filter. The repository
+name on the left opens the picker, which switches between the repositories already opened and
+scans a folder for new ones.
+
+The row under the bar narrows the reading, and it does so in two different ways on purpose.
+The text field dims what does not match instead of hiding it, so the shape of the graph stays
+readable while the eye looks for one commit in it; `/` focuses it, and the two switches beside
+it read it as a regular expression and tell upper case from lower. The three controls after it
+are given to git, which does not return what it leaves out: the author, how far back to read,
+and the paths a commit must have touched.
 
 Next to it sits the branch HEAD is on. Its list holds every local branch: how far ahead and
 behind it stands from the base branch, named at the top of the list, and what the remote knows
