@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { fetchBranches, type Branch, type BranchList, type PlainRef } from '../api'
 import { ago } from '../lanes'
 import { usePanelWidth } from '../panel'
-import { countOf, tree, type Leaf, type Named, type Node } from '../refs'
+import { countOf, ordered, tree, type Leaf, type Named, type Node } from '../refs'
 
 const MIN_WIDTH = 200
 const WIDTH = 300
@@ -119,8 +119,9 @@ export function RefsPanel({ repo, shown, active, fingerprint, onTake }: Props) {
     const keep = <T extends Named>(refs: T[]) =>
       needle ? refs.filter((one) => one.name.toLowerCase().includes(needle)) : refs
     return {
-      locals: tree(keep(list?.branches ?? [])),
-      remotes: tree(keep(list?.remotes ?? [])),
+      locals: ordered(tree(keep(list?.branches ?? []))),
+      remotes: ordered(tree(keep(list?.remotes ?? []))),
+      // a tag is looked for by how recent it is, and the alphabet says nothing of that
       tags: tree(keep(list?.tags ?? [])),
     }
   }, [list, needle])

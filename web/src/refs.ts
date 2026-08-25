@@ -54,3 +54,33 @@ export function tree<T extends Named>(refs: T[]): Node<T>[] {
 export function countOf<T extends Named>(node: Node<T>): number {
   return node.kind === 'leaf' ? 1 : node.children.reduce((sum, one) => sum + countOf(one), 0)
 }
+
+/** The branches everything else is measured from, in the order they are looked for. */
+const TRUNKS = ['main', 'master', 'dev']
+
+function rankOf<T extends Named>(node: Node<T>): number {
+  if (node.kind === 'fork') return TRUNKS.length + 1
+  const held = TRUNKS.indexOf(node.name)
+  return held < 0 ? TRUNKS.length : held
+}
+
+/**
+ * The order a tree of branches is read in.
+ *
+ * The trunk first, then the branches standing on their own, then the folders,
+ * and the alphabet inside each of those. It is a fixed order rather than a
+ * freshest-first one on purpose: a list that reorders itself has to be read
+ * whole every time, and where a branch was yesterday is where it is today.
+ *
+ * The comparison counts digits as numbers, so `1.21.8` lands before `1.21.11`.
+ */
+export function ordered<T extends Named>(nodes: Node<T>[]): Node<T>[] {
+  for (const node of nodes) {
+    if (node.kind === 'fork') node.children = ordered(node.children)
+  }
+  return nodes.sort(
+    (a, b) =>
+      rankOf(a) - rankOf(b) ||
+      a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),
+  )
+}
