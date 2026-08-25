@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Theme } from '../lanes'
-import type { BranchClick, Settings } from '../settings'
+import type { BranchClick, PanelMode, Settings } from '../settings'
 
 interface Props {
   settings: Settings
@@ -77,9 +77,9 @@ export function SettingsMenu({ settings, onChange }: Props) {
           <Choice
             label="the commit panel"
             hint="the column on the right"
-            value={settings.showPanel ? 'yes' : 'no'}
-            options={[['yes', 'shown'], ['no', 'hidden']]}
-            onPick={(value) => onChange({ showPanel: value === 'yes' })}
+            value={settings.panel}
+            options={[['always', 'shown'], ['onClick', 'on a click'], ['never', 'hidden']]}
+            onPick={(value) => onChange({ panel: value as PanelMode })}
           />
           <Choice
             label="a branch clicked"

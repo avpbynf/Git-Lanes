@@ -34,8 +34,8 @@ each have their section, and a name with slashes in it reads as the folders it a
 it stands from its base and whether it was ever pushed; hovering says the rest in full. Clicking
 any ref scrolls the graph to its tip and opens it. On the right, the commit last clicked. The
 graph in the middle is what the other two leave, and the edge between two columns drags to give
-one of them more room. Either side can be turned off for good in the menu, for whoever wants the
-graph alone.
+one of them more room. Either side can be turned off for good in the menu, and the commit panel
+has a third way there: gone until a commit is clicked, with a cross to send it away again.
 
 The graph reads four hundred commits and reads four hundred more each time the scrolling
 reaches its end, so nothing has to be asked for in advance. The burger at the far left opens

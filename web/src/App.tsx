@@ -233,7 +233,13 @@ export default function App() {
             />
           : <p className="empty">{error ?? 'reading the repository...'}</p>}
 
-        <CommitPanel repo={current} hash={selected} known={chosen} shown={settings.showPanel} />
+        <CommitPanel
+          repo={current}
+          hash={selected}
+          known={chosen}
+          mode={settings.panel}
+          onClose={() => setSelected(null)}
+        />
       </main>
     </>
   )

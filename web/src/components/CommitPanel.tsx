@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 import { fetchCommit, type Commit, type CommitDetail } from '../api'
 import { usePanelWidth } from '../panel'
+import type { PanelMode } from '../settings'
+
+const CLOSE = (
+  <svg viewBox="0 0 16 16" aria-hidden="true">
+    <path d="M4.4 4.4l7.2 7.2M11.6 4.4l-7.2 7.2" />
+  </svg>
+)
 
 const MIN_WIDTH = 320
 const WIDTH = 440
@@ -13,7 +20,8 @@ interface Props {
   hash: string | null
   /** What the graph already knows of the commit, so the panel answers the click at once. */
   known: Commit | null
-  shown: boolean
+  mode: PanelMode
+  onClose: () => void
 }
 
 interface Answer {
@@ -22,7 +30,7 @@ interface Answer {
   error?: string
 }
 
-export function CommitPanel({ repo, hash, known, shown }: Props) {
+export function CommitPanel({ repo, hash, known, mode, onClose }: Props) {
   const [answer, setAnswer] = useState<Answer | null>(null)
   const [slowFor, setSlowFor] = useState<string | null>(null)
   const { width, grip } = usePanelWidth('panel', WIDTH, MIN_WIDTH, 'right')
@@ -61,11 +69,20 @@ export function CommitPanel({ repo, hash, known, shown }: Props) {
   const title = held ? (detail ? first : undefined) : known?.s
   const waiting = Boolean(hash) && held?.hash !== hash && slowFor === hash
 
+  // asked for on a click, it is the click that brings it, and the cross that sends it away
+  const shown = mode === 'always' || (mode === 'onClick' && Boolean(hash))
+
   return (
     <aside className={shown ? 'panel' : 'panel gone'} style={{ width }}>
       <div className="grip" {...grip} />
       <header>
         <span className="strong">commit</span>
+        {mode === 'onClick' && (
+          <>
+            <span className="spacer" />
+            <button className="icon" title="close" onClick={onClose}>{CLOSE}</button>
+          </>
+        )}
       </header>
       <div className={waiting ? 'panel-body waiting' : 'panel-body'}>
         {!hash && <p className="empty">pick a commit in the graph</p>}
