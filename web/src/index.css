@@ -154,6 +154,17 @@ button:disabled { cursor: default; color: var(--faint); }
 .status { color: var(--faint); font-size: 11px; white-space: nowrap; }
 .status.bad { color: var(--del); }
 
+/* the window draws its own bar, so this is the only place the project is named
+   when the tree that picks it is turned off */
+.title {
+  color: var(--dim);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 30vw;
+}
+
 /* the repository picker */
 
 .picker { position: relative; }
@@ -428,7 +439,7 @@ button:disabled { cursor: default; color: var(--faint); }
 /* three columns, and the middle one is what the other two leave */
 
 .panel,
-.refs-panel {
+.sidebar {
   position: relative;
   flex: none;
   display: flex;
@@ -439,13 +450,12 @@ button:disabled { cursor: default; color: var(--faint); }
 }
 
 .panel { border-left: 1px solid var(--line); }
-.refs-panel { border-right: 1px solid var(--line); }
+.sidebar { border-right: 1px solid var(--line); }
 
 /* turned off in the menu, a column gives its room back rather than standing empty */
 .gone { display: none; }
 
-.panel header,
-.refs-panel header {
+.panel header {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -455,13 +465,14 @@ button:disabled { cursor: default; color: var(--faint); }
   flex: none;
 }
 
-.refs-panel .hunt {
+/* one field for everything under it, projects as much as branches and tags */
+.sidebar .hunt {
   padding: 6px 8px;
   border-bottom: 1px solid var(--line);
   flex: none;
 }
 
-.refs-panel .hunt input { width: 100%; }
+.sidebar .hunt input { width: 100%; }
 
 .tree {
   flex: 1;
@@ -497,6 +508,58 @@ button:disabled { cursor: default; color: var(--faint); }
 .part + .part { margin-top: 6px; }
 .part-head .name { color: var(--dim); font-weight: 600; }
 
+/* a project row: the name, what it is standing on, and a way to forget it */
+
+/* 24 plus the 8 the body adds lands a project name where a branch name lands */
+.project {
+  display: flex;
+  align-items: center;
+  padding-left: 24px;
+}
+
+.project:hover { background: var(--hover); }
+.project.on { background: var(--sel); }
+
+.project .body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 4px 2px 8px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.project .body .name { flex: none; overflow: hidden; text-overflow: ellipsis; }
+.project .body .dim { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 11px; }
+
+/* the x only shows on the row under the cursor: it is not an everyday gesture */
+.project .x {
+  flex: none;
+  visibility: hidden;
+  padding: 0 8px;
+  border: none;
+  background: none;
+  color: var(--faint);
+}
+
+.project:hover .x { visibility: visible; }
+.project .x:hover { color: var(--del); }
+
+.twig.add { color: var(--dim); padding-left: 32px; }
+.twig.add:hover { color: var(--accent); }
+
+.byhand { display: flex; gap: 6px; padding: 4px 8px 4px 32px; }
+.byhand input { flex: 1; min-width: 0; }
+.found { border-top: 1px solid var(--line); margin-top: 4px; }
+
 .here {
   flex: none;
   border: 1px solid var(--tag);
@@ -524,7 +587,7 @@ button:disabled { cursor: default; color: var(--faint); }
   z-index: 1;
 }
 
-.refs-panel .grip { left: auto; right: -3px; }
+.sidebar .grip { left: auto; right: -3px; }
 .grip:hover { background: var(--accent); }
 
 .panel-body {

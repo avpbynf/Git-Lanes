@@ -11,20 +11,15 @@ import { useGraph } from './useGraph'
 import { CommitPanel } from './components/CommitPanel'
 import { FilterBar } from './components/FilterBar'
 import { GraphView } from './components/GraphView'
-import { RefsPanel } from './components/RefsPanel'
-import { RepoPicker } from './components/RepoPicker'
 import { SettingsMenu } from './components/SettingsMenu'
+import { Sidebar } from './components/Sidebar'
 import { WindowControls } from './components/WindowControls'
 import { dragProps } from './window'
-
-/** How many commits a read asks for, and how many the next one adds. */
-const PAGE = 400
 
 export default function App() {
   const [repos, setRepos] = useState<RepoEntry[]>([])
   const [current, setCurrent] = useState<string | null>(() => localStorage.getItem('repo'))
   const [scope, setScope] = useState(() => readScope(localStorage.getItem('scope')))
-  const [limit, setLimit] = useState(PAGE)
   const [order, setOrder] = useState<Order>(() =>
     localStorage.getItem('order') === 'topo' ? 'topo' : 'date',
   )
@@ -35,7 +30,7 @@ export default function App() {
   const [matchCase, setMatchCase] = useState(() => localStorage.getItem('case') === 'yes')
   const [selected, setSelected] = useState<string | null>(null)
   const [jump, setJump] = useState<{ h: string; n: number } | null>(null)
-  // the ref the reading sits on, which is what the tree highlights
+  // the ref the reading sits on, spelled in full, which is what the tree highlights
   const [taken, setTaken] = useState<string | null>(null)
   const [settings, setSettings] = useState<Settings>(readSettings)
   const search = useRef<HTMLInputElement>(null)
@@ -54,11 +49,18 @@ export default function App() {
   // oxlint-disable-next-line react/set-state-in-effect
   useEffect(() => { void refreshRepos() }, [refreshRepos])
 
-  const { graph, error, updatedAt, reload } = useGraph(current, scope, limit, order, filters)
+  const { graph, error, updatedAt, reload } = useGraph(current, scope, order, filters)
 
   useEffect(() => { document.documentElement.dataset.theme = settings.theme }, [settings.theme])
   useEffect(() => { if (current) localStorage.setItem('repo', current) }, [current])
   useEffect(() => { document.title = graph ? `${graph.repo} . gitlanes` : 'gitlanes' }, [graph])
+
+  // the branch a project sits on is read with the list, so it goes stale unless
+  // the list is read again when the repository being watched moves
+  const beat = graph?.fingerprint
+  // the state lands after the fetch resolves, never synchronously here
+  // oxlint-disable-next-line react/set-state-in-effect
+  useEffect(() => { if (beat) void refreshRepos() }, [beat, refreshRepos])
 
   const change = useCallback((patch: Partial<Settings>) => {
     setSettings((held) => {
@@ -71,7 +73,6 @@ export default function App() {
     if (patch.branchClick === 'reveal') {
       const held = refOf(scope)
       if (held) setTaken(held)
-      setLimit(PAGE)
       setScope(ALL)
       localStorage.setItem('scope', ALL)
     }
@@ -95,7 +96,6 @@ export default function App() {
   const pick = (path: string) => {
     setSelected(null)
     setTaken(null)
-    setLimit(PAGE)
     setScope(ALL)
     localStorage.setItem('scope', ALL)
     // authors and paths belong to the repository that was open, not to the next one
@@ -118,7 +118,6 @@ export default function App() {
     setTaken(refname)
     if (settings.branchClick === 'filter') {
       const next = scopeOf(refname)
-      setLimit(PAGE)
       setScope(next)
       localStorage.setItem('scope', next)
     }
@@ -135,16 +134,12 @@ export default function App() {
   const choose = (hash: string) => {
     setSelected(hash)
     const commit = graph?.commits.find((one) => one.h === hash)
-    const ends = commit?.refs.filter((ref) => ref.k === 'local').map((ref) => ref.n) ?? []
-    const full = ends.map((name) => HEADS + name)
-    if (!full.length || full.includes(taken ?? '')) return
-    setTaken(full.find((name) => name === HEADS + graph?.branch) ?? full[0])
+    const ends = commit?.refs.filter((ref) => ref.k === 'local').map((ref) => HEADS + ref.n) ?? []
+    if (!ends.length || ends.includes(taken ?? '')) return
+    setTaken(ends.find((name) => name === HEADS + graph?.branch) ?? ends[0])
   }
 
-  const narrow = (patch: Partial<Filters>) => {
-    setLimit(PAGE)
-    setFilters((held) => ({ ...held, ...patch }))
-  }
+  const narrow = (patch: Partial<Filters>) => setFilters((held) => ({ ...held, ...patch }))
 
   const mode = (patch: { regex?: boolean; matchCase?: boolean }) => {
     if (patch.regex !== undefined) {
@@ -156,17 +151,6 @@ export default function App() {
       localStorage.setItem('case', patch.matchCase ? 'yes' : 'no')
     }
   }
-
-  /**
-   * One more page, once the page being read has landed in full.
-   *
-   * Scrolling fires this many times over; the count standing short of the
-   * limit is what says a read is still on its way, and holds the limit still.
-   */
-  const more = useCallback(() => {
-    if (!graph?.truncated) return
-    setLimit((held) => (graph.commits.length >= held ? held + PAGE : held))
-  }, [graph])
 
   // the row that was clicked, which already holds the subject the panel opens with
   const chosen = useMemo(
@@ -189,7 +173,8 @@ export default function App() {
     <>
       <header className="bar" {...dragProps}>
         <SettingsMenu settings={settings} onChange={change} />
-        <RepoPicker repos={repos} current={current} onPick={pick} onChanged={refreshRepos} />
+        {/* a name, not a control: the projects are picked in the tree on the left */}
+        <span className="title">{graph?.repo ?? ''}</span>
         <span className="spacer" />
         {/* nothing to say while it works: only a failure is worth a line in the bar */}
         {error && <span className="status bad">{error}</span>}
@@ -218,11 +203,14 @@ export default function App() {
       />
 
       <main className="body">
-        <RefsPanel
-          repo={current}
+        <Sidebar
+          repos={repos}
+          current={current}
           shown={settings.showRefs}
           active={lit}
           fingerprint={graph?.fingerprint ?? ''}
+          onPickRepo={pick}
+          onRepos={refreshRepos}
           onTake={take}
         />
 
@@ -235,7 +223,6 @@ export default function App() {
               selected={selected}
               jump={jump}
               onSelect={choose}
-              onMore={more}
             />
           : <p className="empty">{error ?? 'reading the repository...'}</p>}
 

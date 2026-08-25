@@ -164,16 +164,25 @@ const desktop = (globalThis as { __TAURI__?: { core?: { invoke?: Invoke } } })._
 
 export const insideApp = Boolean(desktop)
 
-export const fetchGraph = (
-  repo: string | null,
-  scope: Scope,
-  limit: number,
-  order: Order,
-  filters: Filters,
-) =>
+/** Zero is what the backends read as no limit at all, which is what a whole log is. */
+const WHOLE = 0
+
+export const fetchGraph = (repo: string | null, scope: Scope, order: Order, filters: Filters) =>
   desktop
-    ? (desktop('graph', { repo, scope, limit, order, filters }) as Promise<Graph>)
-    : get<Graph>('/api/graph', { repo: repo ?? undefined, scope, limit, order, ...filters })
+    ? (desktop('graph', { repo, scope, limit: WHOLE, order, filters }) as Promise<Graph>)
+    : get<Graph>('/api/graph', {
+        repo: repo ?? undefined,
+        scope,
+        limit: String(WHOLE),
+        order,
+        ...filters,
+      })
+
+/** Pick a folder in a window of the system's own. Only the desktop has one. */
+export const pickFolder = () =>
+  desktop ? (desktop('pick_folder') as Promise<string | null>) : Promise.resolve(null)
+
+export const canPickFolder = insideApp
 
 export const fetchBranches = (repo: string | null) =>
   desktop

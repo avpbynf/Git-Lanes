@@ -27,16 +27,6 @@ function roomFor(values: string[], share: number): number {
   return Math.ceil(widths[Math.min(widths.length - 1, Math.floor(widths.length * share))])
 }
 
-/**
- * How close to the end the eye must get before the graph asks for more.
- *
- * A read costs about the same whatever its depth, some three hundred
- * milliseconds of spawning git either way, so the page is large and the
- * asking is early: a hundred rows of warning is enough for the next page to
- * land before anyone reaches the one being read.
- */
-const REACH = ROW * 100
-
 interface Props {
   graph: Graph
   theme: Theme
@@ -47,10 +37,9 @@ interface Props {
   selected: string | null
   jump: { h: string; n: number } | null
   onSelect: (hash: string) => void
-  onMore: () => void
 }
 
-export function GraphView({ graph, theme, match, narrowed, selected, jump, onSelect, onMore }: Props) {
+export function GraphView({ graph, theme, match, narrowed, selected, jump, onSelect }: Props) {
   const scroller = useRef<HTMLDivElement>(null)
   const [scrollTop, setScrollTop] = useState(0)
   const [viewport, setViewport] = useState(800)
@@ -102,8 +91,6 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
     const commit = graph.commits[row]
     anchor.current =
       element.scrollTop < 4 || !commit ? null : { h: commit.h, delta: element.scrollTop - row * ROW }
-    // the graph grows as the eye reaches its end, which is what replaces a limit control
-    if (element.scrollHeight - element.scrollTop - element.clientHeight < REACH) onMore()
   }
 
   const count = graph.commits.length
