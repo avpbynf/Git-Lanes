@@ -3,7 +3,7 @@
 
 mod git;
 
-use git::{CommitDetail, Graph, RepoEntry};
+use git::{BranchList, CommitDetail, Graph, RepoEntry};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -127,6 +127,11 @@ async fn graph(repo: Option<String>, scope: String, limit: usize) -> Result<Grap
 }
 
 #[tauri::command]
+async fn branches(repo: Option<String>) -> Result<BranchList, String> {
+    off_thread(move || git::branches(&which_repo(repo)?)).await
+}
+
+#[tauri::command]
 async fn fingerprint(repo: Option<String>) -> Result<String, String> {
     off_thread(move || git::fingerprint(&which_repo(repo)?)).await
 }
@@ -144,6 +149,7 @@ fn main() {
             close_repo,
             discover,
             graph,
+            branches,
             fingerprint,
             commit_detail
         ])

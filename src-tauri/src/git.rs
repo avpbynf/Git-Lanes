@@ -112,6 +112,38 @@ pub struct CommitDetail {
     pub merge: bool,
 }
 
+#[derive(Clone, Copy)]
+struct Divergence {
+    behind: usize,
+    ahead: usize,
+}
+
+#[derive(Serialize)]
+pub struct Upstream {
+    pub name: String,
+    pub behind: usize,
+    pub ahead: usize,
+    pub gone: bool,
+}
+
+#[derive(Serialize)]
+pub struct Branch {
+    pub name: String,
+    pub head: String,
+    pub t: String,
+    pub current: bool,
+    pub base: Option<String>,
+    pub behind: usize,
+    pub ahead: usize,
+    pub upstream: Option<Upstream>,
+}
+
+#[derive(Serialize)]
+pub struct BranchList {
+    pub base: Option<String>,
+    pub branches: Vec<Branch>,
+}
+
 #[derive(Serialize)]
 pub struct RepoEntry {
     pub path: String,
@@ -428,6 +460,115 @@ pub fn commit_detail(repo: &str, hash: &str) -> Result<CommitDetail, String> {
         body: parts[7].trim_matches('\n').to_string(),
         files,
     })
+}
+
+struct RawBranch {
+    name: String,
+    head: String,
+    t: String,
+    upstream: String,
+    track: String,
+}
+
+/// Local branches, most recently committed first, with their upstream.
+fn read_branch_refs(repo: &str) -> Result<Vec<RawBranch>, String> {
+    let format = format!(
+        "--format=%(refname:short){f}%(objectname){f}%(committerdate:iso-strict){f}\
+         %(upstream:short){f}%(upstream:track,nobracket)",
+        f = FIELD
+    );
+    let listing = git(
+        repo,
+        &["for-each-ref", "--sort=-committerdate", format.as_str(), "refs/heads"],
+    )?;
+    let mut rows = Vec::new();
+    for line in listing.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let mut fields = line.splitn(5, FIELD);
+        let (Some(name), Some(head), Some(t), Some(upstream), Some(track)) = (
+            fields.next(), fields.next(), fields.next(), fields.next(), fields.next(),
+        ) else {
+            continue;
+        };
+        rows.push(RawBranch {
+            name: name.to_string(),
+            head: head.to_string(),
+            t: t.to_string(),
+            upstream: upstream.to_string(),
+            track: track.to_string(),
+        });
+    }
+    Ok(rows)
+}
+
+/// The branch a divergence is measured against, None when there is no other one.
+fn pick_base(names: &[String], head: &str, branch: Option<&str>) -> Option<String> {
+    let first = names.first().map(String::as_str);
+    [Some(head), Some("dev"), Some("main"), first]
+        .into_iter()
+        .flatten()
+        .find(|candidate| {
+            !candidate.is_empty()
+                && Some(*candidate) != branch
+                && names.iter().any(|known| known == candidate)
+        })
+        .map(str::to_string)
+}
+
+/// What each side holds that the other does not.
+///
+/// Answers None when the comparison cannot be made, which is what an upstream
+/// whose remote branch was deleted does.
+fn divergence(repo: &str, base: &str, branch: &str) -> Option<Divergence> {
+    let range = format!("{base}...{branch}");
+    let counted = git_soft(repo, &["rev-list", "--left-right", "--count", range.as_str()]);
+    let mut counts = counted.split_whitespace();
+    let behind = counts.next()?.parse().ok()?;
+    let ahead = counts.next()?.parse().ok()?;
+    Some(Divergence { behind, ahead })
+}
+
+pub fn branches(repo: &str) -> Result<BranchList, String> {
+    let rows = read_branch_refs(repo)?;
+    let names: Vec<String> = rows.iter().map(|row| row.name.clone()).collect();
+    let head = git(repo, &["branch", "--show-current"])?.trim().to_string();
+
+    let mut branches = Vec::with_capacity(rows.len());
+    for row in rows {
+        let base = pick_base(&names, &head, Some(&row.name));
+        let against = base
+            .as_deref()
+            .and_then(|base| divergence(repo, base, &row.name))
+            .unwrap_or(Divergence { behind: 0, ahead: 0 });
+        let upstream = if row.upstream.is_empty() {
+            None
+        } else {
+            let counts = if row.track == "gone" {
+                None
+            } else {
+                divergence(repo, &row.upstream, &row.name)
+            };
+            Some(Upstream {
+                name: row.upstream,
+                behind: counts.map_or(0, |counts| counts.behind),
+                ahead: counts.map_or(0, |counts| counts.ahead),
+                gone: counts.is_none(),
+            })
+        };
+        branches.push(Branch {
+            current: row.name == head,
+            name: row.name,
+            head: row.head,
+            t: row.t,
+            base,
+            behind: against.behind,
+            ahead: against.ahead,
+            upstream,
+        });
+    }
+    Ok(BranchList { base: pick_base(&names, &head, None), branches })
 }
 
 /// One line about a repository, tolerant: a moved folder must not break the list.
