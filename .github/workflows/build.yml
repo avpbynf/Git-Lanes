@@ -1,0 +1,77 @@
+# The gates a contributor runs, run again where nobody's machine is involved: the page is linted
+# and type checked, and the window is compiled. CLAUDE.md says a change to one backend is a change
+# to both, and this is what catches the half that was forgotten, on a branch that has not reached
+# main yet rather than in the release.
+#
+# One job, on Windows, and both of those are on purpose. The Rust build embeds web/dist and the
+# derived icons, neither of which git carries, so the page has to be built before the window can
+# be: two jobs would have to ship a folder between them to say the same thing. Windows because
+# that is what the window is bundled for.
+#
+# A tag does not come through here. release.yml builds the same tree itself before it publishes.
+
+name: build
+
+on:
+  push:
+    # Both long-lived branches. main carries nothing dev has not already carried, so a run there
+    # reads the same tree twice; it is kept because main is what somebody arriving at the
+    # repository sees, and a branch with no run of its own reads as a branch nobody checks.
+    branches: [main, dev]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A branch only needs its latest push checked. Superseded runs are cancelled rather than left to
+# report on a commit nobody is looking at any more.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    # bash, and not the PowerShell a Windows runner defaults to. A step of several commands is
+    # reported on its last one there, so a lint that failed under a build that passed would go by
+    # as a green run.
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Cache what cargo downloads and what it builds
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            src-tauri/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-
+
+      - uses: ./.github/actions/tauri-cli
+
+      # bun run build is tsc -b and then the bundle, so this is the type check as much as it is
+      # the page. What the lint refuses is whatever web/.oxlintrc.json refuses on the day it runs.
+      - name: The page
+        working-directory: web
+        run: |
+          bun install --frozen-lockfile
+          bunx oxlint --deny-warnings src
+          bun run build
+
+      # Derived from source.png, which is the copy the repository keeps, because the Rust build
+      # embeds icon.ico and a fresh clone has none.
+      - name: The icons
+        run: cargo tauri icon src-tauri/icons/source.png
+
+      - name: The window
+        run: cargo check --manifest-path src-tauri/Cargo.toml

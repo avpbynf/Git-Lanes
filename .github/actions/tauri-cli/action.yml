@@ -1,0 +1,32 @@
+# The Tauri CLI, which a runner has no reason to carry and which both workflows need: it derives
+# the icons out of source.png, and it is what bundles the installer.
+#
+# Building it takes minutes and it changes only when this file says so, so it is cached under the
+# version asked for. The version is pinned rather than floated: a CLI that moved on its own would
+# be a difference between two runs that nothing in the history records.
+
+name: tauri-cli
+description: The Tauri CLI, cached, since building it is minutes and it moves only by hand.
+
+inputs:
+  version:
+    description: Kept in step by hand with the tauri crate in src-tauri/Cargo.toml.
+    default: "2.11.4"
+
+runs:
+  using: composite
+
+  steps:
+    - name: Take the CLI out of the cache
+      id: held
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/bin/cargo-tauri.exe
+        key: tauri-cli-${{ inputs.version }}-${{ runner.os }}
+
+    - name: Build it, the one time the cache is empty
+      if: steps.held.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: cargo install tauri-cli --version "$VERSION" --locked
