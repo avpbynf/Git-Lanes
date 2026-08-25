@@ -1,0 +1,24 @@
+{
+  "name": "gitlanes-web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun build ./index.html --outdir dist --watch",
+    "build": "tsc -b && bun build ./index.html --outdir dist --production",
+    "check": "tsc -b",
+    "lint": "oxlint"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.0",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "oxlint": "^1.79.0",
+    "typescript": "~6.0.2"
+  }
+}

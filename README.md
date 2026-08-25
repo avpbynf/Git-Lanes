@@ -19,11 +19,26 @@ while its tab is hidden and catches up when you come back to it.
 
 Click a commit for its message and the files it touched. `/` focuses the filter, which dims
 what does not match instead of hiding it, so the shape of the graph stays readable. Escape
-closes the panel, then clears the filter.
+closes the panel, then clears the filter. The repository name on the left opens the picker,
+which switches between the repositories already opened and scans a folder for new ones.
+
+## Building the front end
+
+```
+cd web
+bun install
+bun run build      writes web/dist, which the backend then serves
+bun run dev        the same build, rebuilt on every save
+```
+
+The bundler is Bun's own, not Vite. Vite 8 bundles through a native rolldown module, and this
+machine's application control policy refuses to load unsigned native modules, so it cannot run
+here at all. Bun needs no such module, and the whole build takes under a tenth of a second.
 
 ## What it needs
 
-Git and Python 3. Nothing else, no package to install: the backend is standard library only.
+Git and Python 3 to serve, Bun to build the page. The backend imports nothing outside the
+standard library.
 
 ## How it reads a repository
 
