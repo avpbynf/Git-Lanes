@@ -7,26 +7,8 @@ A version number here, the tag that releases it and the number the bar prints ar
 release workflow refuses a tag that disagrees with the version in `src-tauri/Cargo.toml` rather
 than publishing an installer named after one thing and built from another.
 
-Everything is a pre-release while the version stays under `1.0.0`, and nothing here promises what
-the next one holds.
-
-## Unreleased
-
-- **What is not committed yet has a row of its own**, above the commit it was started from, drawn
-  with a dashed dot and a dashed line down to it because it is not history yet. It says how many
-  files are staged, changed and untracked, and when they were last touched; clicking it lists
-  them, as clicking a commit lists its files. Every worktree of the repository gets one on its own
-  branch, so the work left half done in a folder nobody has open any more is visible from here.
-
-- **A branch a trunk already holds says so.** A branch whose commits are all in `dev` or `main`
-  carries a `merged` tag beside its name on its last commit, whether the trunk holds those very
-  commits or the same changes replayed under other hashes by a rebase or a cherry-pick. Git says
-  nothing about the second, which is what makes a branch finished with months ago go on reading
-  as work still waiting.
-
-- **A change that was replayed lights both of its copies.** Clicking either one rings the pair,
-  the one clicked solid and its twin dashed, so two rows carrying one piece of work read as one
-  piece of work rather than two.
+Nothing here promises what the next version holds, and nothing under `1.0.0` promises to hold
+still.
 
 ## 0.1.0
 
@@ -49,6 +31,22 @@ The first release, and an installer for it.
 - **The commit last clicked**, on the right, with its message and the files it touched. The
   arrows walk from one commit to the next, the graph rings the one being read, and the row under
   the pointer lights the branch it belongs to.
+
+- **What is not committed yet has a row of its own**, above the commit it was started from, drawn
+  with a dashed dot and a dashed line down to it because it is not history yet. It says how many
+  files are staged, changed and untracked, and when they were last touched; clicking it lists
+  them, as clicking a commit lists its files. Every worktree of the repository gets one on its own
+  branch, so the work left half done in a folder nobody has open any more is visible from here.
+
+- **A branch a trunk already holds says so.** A branch whose commits are all in `dev` or `main`
+  carries a `merged` tag beside its name on its last commit, whether the trunk holds those very
+  commits or the same changes replayed under other hashes by a rebase or a cherry-pick. Git says
+  nothing about the second, which is what makes a branch finished with months ago go on reading
+  as work still waiting.
+
+- **A change that was replayed lights both of its copies.** Clicking either one rings the pair,
+  the one clicked solid and its twin dashed, so two rows carrying one piece of work read as one
+  piece of work rather than two.
 
 - **It never writes to a repository** and holds no lock, so it is safe to leave open while you
   work. The page redraws when a ref moves and not on a timer, and a hidden tab asks nothing at
