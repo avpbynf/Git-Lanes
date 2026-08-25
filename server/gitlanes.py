@@ -82,9 +82,10 @@ def parse_refs(decoration, remotes):
     return refs
 
 
-def read_commits(repo, scope, limit):
+def read_commits(repo, scope, limit, order):
     fmt = FIELD.join(["%H", "%P", "%an", "%aI", "%D", "%s"]) + RECORD
-    args = ["log", "--date-order", "--pretty=format:" + fmt]
+    args = ["log", "--topo-order" if order == "topo" else "--date-order",
+            "--pretty=format:" + fmt]
     if scope == "all":
         # not --all: that one drags in refs/stash and the note refs
         args += ["--branches", "--tags", "--remotes", "HEAD"]
@@ -193,8 +194,8 @@ def is_empty(repo):
     return not git_soft(repo, "for-each-ref", "--count=1", "--format=%(objectname)").strip()
 
 
-def graph_payload(repo, scope, limit):
-    commits = [] if is_empty(repo) else read_commits(repo, scope, limit)
+def graph_payload(repo, scope, limit, order):
+    commits = [] if is_empty(repo) else read_commits(repo, scope, limit, order)
     edges, lane_count = build_graph(commits)
     branch, dirty = head_of(repo)
     return {
@@ -436,7 +437,8 @@ class Handler(BaseHTTPRequestHandler):
             elif url.path == "/api/graph":
                 repo = self.which_repo(query)
                 limit = int(query.get("limit", ["400"])[0])
-                self.send_json(graph_payload(repo, query.get("scope", ["all"])[0], max(limit, 0)))
+                self.send_json(graph_payload(repo, query.get("scope", ["all"])[0],
+                                             max(limit, 0), query.get("order", ["date"])[0]))
             elif url.path == "/api/branches":
                 self.send_json(branch_payload(self.which_repo(query)))
             elif url.path == "/api/fingerprint":
