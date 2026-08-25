@@ -5,7 +5,7 @@ import {
 } from './api'
 import { ago } from './lanes'
 import { searching } from './search'
-import { ALL, branchOf, readScope, scopeOf } from './scope'
+import { ALL, HEADS, readScope, refOf, scopeOf } from './scope'
 import { readSettings, writeSettings, type Settings } from './settings'
 import { useGraph } from './useGraph'
 import { CommitPanel } from './components/CommitPanel'
@@ -66,10 +66,10 @@ export default function App() {
       writeSettings(next)
       return next
     })
-    // going back to one global view releases the branch that was bounding it, which
+    // going back to one global view releases the ref that was bounding it, which
     // otherwise stays with no control left to undo it
     if (patch.branchClick === 'reveal') {
-      const held = branchOf(scope)
+      const held = refOf(scope)
       if (held) setTaken(held)
       setLimit(PAGE)
       setScope(ALL)
@@ -108,14 +108,19 @@ export default function App() {
     setJump((held) => ({ h: hash, n: (held?.n ?? 0) + 1 }))
   }
 
-  /** A ref taken in the tree: bound to, when that is the mode and it is a branch. */
-  const take = (name: string, head: string, local: boolean) => {
-    setTaken(name)
-    if (local && settings.branchClick === 'filter') {
+  /**
+   * A ref taken in the tree, bound to when that is the mode.
+   *
+   * Its tip is shown either way. Bounding without moving would leave whatever
+   * was read before selected under a graph that is no longer its own.
+   */
+  const take = (refname: string, head: string) => {
+    setTaken(refname)
+    if (settings.branchClick === 'filter') {
+      const next = scopeOf(refname)
       setLimit(PAGE)
-      setScope(scopeOf(name))
-      localStorage.setItem('scope', scopeOf(name))
-      return
+      setScope(next)
+      localStorage.setItem('scope', next)
     }
     goTo(head)
   }
@@ -131,8 +136,9 @@ export default function App() {
     setSelected(hash)
     const commit = graph?.commits.find((one) => one.h === hash)
     const ends = commit?.refs.filter((ref) => ref.k === 'local').map((ref) => ref.n) ?? []
-    if (!ends.length || ends.includes(taken ?? '')) return
-    setTaken(ends.find((name) => name === graph?.branch) ?? ends[0])
+    const full = ends.map((name) => HEADS + name)
+    if (!full.length || full.includes(taken ?? '')) return
+    setTaken(full.find((name) => name === HEADS + graph?.branch) ?? full[0])
   }
 
   const narrow = (patch: Partial<Filters>) => {
@@ -176,7 +182,7 @@ export default function App() {
 
   const found = useMemo(() => searching(query, regex, matchCase), [query, regex, matchCase])
 
-  const lit = branchOf(scope) ?? taken ?? graph?.branch ?? null
+  const lit = refOf(scope) ?? taken ?? (graph?.branch ? HEADS + graph.branch : null)
   const freshness = updatedAt ? `refresh, read ${ago(new Date(updatedAt))}` : 'refresh'
 
   return (

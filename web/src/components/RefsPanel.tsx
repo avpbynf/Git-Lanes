@@ -3,6 +3,7 @@ import { fetchBranches, type Branch, type BranchList, type PlainRef } from '../a
 import { ago } from '../lanes'
 import { usePanelWidth } from '../panel'
 import { countOf, ordered, tree, type Leaf, type Named, type Node } from '../refs'
+import { HEADS, REMOTES, TAGS } from '../scope'
 
 const MIN_WIDTH = 200
 const WIDTH = 300
@@ -10,12 +11,12 @@ const WIDTH = 300
 interface Props {
   repo: string | null
   shown: boolean
-  /** The ref the reading sits on, which is what the tree highlights. */
+  /** The full name of the ref the reading sits on, which the tree highlights. */
   active: string | null
   /** Moves whenever a ref does, which is when the tree is worth reading again. */
   fingerprint: string
-  /** Only a local branch can bound the graph, so the kind travels with the name. */
-  onTake: (name: string, head: string, local: boolean) => void
+  /** The ref spelled in full, since that is what bounds a graph and tells two apart. */
+  onTake: (refname: string, head: string) => void
 }
 
 interface Answer {
@@ -126,32 +127,39 @@ export function RefsPanel({ repo, shown, active, fingerprint, onTake }: Props) {
     }
   }, [list, needle])
 
-  const branchLeaf = (node: Leaf<Branch>, depth: number) => (
-    <button
-      key={node.path}
-      className={node.ref.name === active ? 'twig leaf on' : 'twig leaf'}
-      style={{ paddingLeft: 6 + depth * 12 + 14 }}
-      title={storyOf(node.ref, list?.base ?? null)}
-      onClick={() => onTake(node.ref.name, node.ref.head, true)}
-    >
-      <span className="name">{node.name}</span>
-      {node.ref.current && <span className="here">HEAD</span>}
-      {!node.ref.upstream && <span className="nowhere">new</span>}
-      <Divergence behind={node.ref.behind} ahead={node.ref.ahead} />
-    </button>
-  )
+  const branchLeaf = (node: Leaf<Branch>, depth: number) => {
+    const refname = HEADS + node.ref.name
+    return (
+      <button
+        key={node.path}
+        className={refname === active ? 'twig leaf on' : 'twig leaf'}
+        style={{ paddingLeft: 6 + depth * 12 + 14 }}
+        title={storyOf(node.ref, list?.base ?? null)}
+        onClick={() => onTake(refname, node.ref.head)}
+      >
+        <span className="name">{node.name}</span>
+        {node.ref.current && <span className="here">HEAD</span>}
+        {!node.ref.upstream && <span className="nowhere">new</span>}
+        <Divergence behind={node.ref.behind} ahead={node.ref.ahead} />
+      </button>
+    )
+  }
 
-  const plainLeaf = (node: Leaf<PlainRef>, depth: number) => (
-    <button
-      key={node.path}
-      className={node.ref.name === active ? 'twig leaf on' : 'twig leaf'}
-      style={{ paddingLeft: 6 + depth * 12 + 14 }}
-      title={`${node.ref.head.slice(0, 12)}\n${ago(new Date(node.ref.t))}`}
-      onClick={() => onTake(node.ref.name, node.ref.head, false)}
-    >
-      <span className="name">{node.name}</span>
-    </button>
-  )
+  /** Remote branches and tags differ only by the drawer their name lives in. */
+  const plainLeaf = (drawer: string) => (node: Leaf<PlainRef>, depth: number) => {
+    const refname = drawer + node.ref.name
+    return (
+      <button
+        key={node.path}
+        className={refname === active ? 'twig leaf on' : 'twig leaf'}
+        style={{ paddingLeft: 6 + depth * 12 + 14 }}
+        title={`${node.ref.head.slice(0, 12)}\n${ago(new Date(node.ref.t))}`}
+        onClick={() => onTake(refname, node.ref.head)}
+      >
+        <span className="name">{node.name}</span>
+      </button>
+    )
+  }
 
   const section = (key: string, label: string, count: number, body: ReactNode) => (
     <div className="part" key={key}>
@@ -187,9 +195,9 @@ export function RefsPanel({ repo, shown, active, fingerprint, onTake }: Props) {
             {section('\0local', 'local', list.branches.length,
               <Twig nodes={shape.locals} depth={1} shut={shut} onFold={fold} leaf={branchLeaf} />)}
             {section('\0remote', 'remote', list.remotes.length,
-              <Twig nodes={shape.remotes} depth={1} shut={shut} onFold={fold} leaf={plainLeaf} />)}
+              <Twig nodes={shape.remotes} depth={1} shut={shut} onFold={fold} leaf={plainLeaf(REMOTES)} />)}
             {section('\0tags', 'tags', list.tags.length,
-              <Twig nodes={shape.tags} depth={1} shut={shut} onFold={fold} leaf={plainLeaf} />)}
+              <Twig nodes={shape.tags} depth={1} shut={shut} onFold={fold} leaf={plainLeaf(TAGS)} />)}
           </>
         )}
       </div>

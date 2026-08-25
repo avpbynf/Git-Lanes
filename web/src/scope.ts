@@ -1,18 +1,41 @@
 /**
  * What the graph is bounded to.
  *
- * `all` is every ref the repository holds. `branch:<name>` is one branch and
- * the history behind it. The prefix is what keeps a branch actually named
- * `all` from being read as the whole repository.
+ * `all` is every ref the repository holds. `ref:<full name>` is one ref and the
+ * history behind it, spelled the long way: `refs/heads/dev`, `refs/tags/v0.7.5`,
+ * `refs/remotes/origin/dev`. Git reads a tag as a starting point exactly as it
+ * reads a branch, so nothing here has to know which kind it was handed.
+ *
+ * The full spelling is also what keeps a ref named like an option an option's
+ * problem and not ours, and what tells a tag `dev` from a branch `dev`.
  */
 export const ALL = 'all'
 
-const PREFIX = 'branch:'
+const REF = 'ref:'
 
-export const scopeOf = (branch: string): string => PREFIX + branch
+export const HEADS = 'refs/heads/'
+export const TAGS = 'refs/tags/'
+export const REMOTES = 'refs/remotes/'
 
-export const branchOf = (scope: string): string | null =>
-  scope.startsWith(PREFIX) ? scope.slice(PREFIX.length) : null
+export const scopeOf = (refname: string): string => REF + refname
 
-/** `head` is what the first version stored, and it no longer has a control. */
-export const readScope = (held: string | null): string => (!held || held === 'head' ? ALL : held)
+export const refOf = (scope: string): string | null =>
+  scope.startsWith(REF) ? scope.slice(REF.length) : null
+
+/** What to call a ref on screen, which is its name without the drawer it lives in. */
+export function shortOf(refname: string): string {
+  for (const drawer of [HEADS, TAGS, REMOTES]) {
+    if (refname.startsWith(drawer)) return refname.slice(drawer.length)
+  }
+  return refname
+}
+
+/**
+ * `head`, then `branch:<short name>`: the two shapes this was stored as before.
+ * Neither has a control any more, so both are read once and rewritten.
+ */
+export function readScope(held: string | null): string {
+  if (!held || held === 'head') return ALL
+  if (held.startsWith('branch:')) return scopeOf(HEADS + held.slice('branch:'.length))
+  return held
+}
