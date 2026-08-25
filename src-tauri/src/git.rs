@@ -542,9 +542,14 @@ struct RawBranch {
 ///
 /// An annotated tag is an object of its own, so the peeled name is what points
 /// at the commit; a lightweight one has none and points there itself.
+///
+/// A symbolic ref points at another of them and is not one: origin/HEAD is the
+/// only one here, and it cannot be told by its name, which git shortens to the
+/// remote alone.
 fn read_plain_refs(repo: &str, where_: &str) -> Result<Vec<PlainRef>, String> {
     let format = format!(
-        "--format=%(refname:short){f}%(objectname){f}%(*objectname){f}%(creatordate:iso-strict)",
+        "--format=%(refname:short){f}%(objectname){f}%(*objectname){f}\
+         %(creatordate:iso-strict){f}%(symref)",
         f = FIELD
     );
     let listing = git(
@@ -556,12 +561,15 @@ fn read_plain_refs(repo: &str, where_: &str) -> Result<Vec<PlainRef>, String> {
         if line.trim().is_empty() {
             continue;
         }
-        let mut fields = line.splitn(4, FIELD);
-        let (Some(name), Some(tip), Some(peeled), Some(t)) =
-            (fields.next(), fields.next(), fields.next(), fields.next())
-        else {
+        let mut fields = line.splitn(5, FIELD);
+        let (Some(name), Some(tip), Some(peeled), Some(t), Some(symref)) = (
+            fields.next(), fields.next(), fields.next(), fields.next(), fields.next(),
+        ) else {
             continue;
         };
+        if !symref.is_empty() {
+            continue;
+        }
         refs.push(PlainRef {
             name: name.to_string(),
             head: if peeled.is_empty() { tip.to_string() } else { peeled.to_string() },
@@ -669,16 +677,10 @@ pub fn branches(repo: &str) -> Result<BranchList, String> {
             upstream,
         });
     }
-    // origin/HEAD is a pointer at another of them, never a branch of its own
-    let remotes = read_plain_refs(repo, "refs/remotes")?
-        .into_iter()
-        .filter(|one| !one.name.ends_with("/HEAD"))
-        .collect();
-
     Ok(BranchList {
         base: pick_base(&names, &head, None),
         branches,
-        remotes,
+        remotes: read_plain_refs(repo, "refs/remotes")?,
         tags: read_plain_refs(repo, "refs/tags")?,
     })
 }
