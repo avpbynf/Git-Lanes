@@ -363,3 +363,41 @@ button:disabled { cursor: default; color: var(--faint); }
 .file .n i { font-style: normal; }
 .a { color: var(--add); }
 .d { color: var(--del); }
+
+/* the branch list */
+
+.branches { position: relative; }
+.branches .drop { width: 540px; }
+
+.branches .head {
+  margin: 0 0 4px;
+  padding: 2px 6px 6px;
+  border-bottom: 1px solid var(--line);
+  color: var(--dim);
+  font-size: 11px;
+}
+
+.brow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 132px 108px 72px;
+  gap: 8px;
+  align-items: baseline;
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+
+.brow:hover { background: var(--hover); }
+.brow.on { background: var(--sel); }
+
+.brow .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.brow .cell { display: flex; gap: 8px; font-size: 11px; }
+.brow .age { color: var(--faint); font-size: 11px; text-align: right; }
+.brow .vs { color: var(--faint); font-size: 10.5px; }
+.branches .ahead { color: var(--add); }
+.branches .behind { color: var(--del); }
+.branches .nowhere { color: var(--tag); }

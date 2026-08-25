@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchRepos, type RepoEntry, type Scope } from './api'
 import { clockOf, type Theme } from './lanes'
 import { useGraph } from './useGraph'
+import { BranchDivergence } from './components/BranchDivergence'
 import { CommitPanel } from './components/CommitPanel'
 import { GraphView } from './components/GraphView'
 import { RepoPicker } from './components/RepoPicker'
@@ -76,6 +77,7 @@ export default function App() {
     <>
       <header className="bar">
         <RepoPicker repos={repos} current={current} onPick={pick} onChanged={refreshRepos} />
+        <BranchDivergence repo={current} />
         <span className="path" {...dragProps}>{graph?.path}</span>
         <span className="spacer" {...dragProps} />
         <input

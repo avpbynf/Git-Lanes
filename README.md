@@ -22,6 +22,10 @@ what does not match instead of hiding it, so the shape of the graph stays readab
 closes the panel, then clears the filter. The repository name on the left opens the picker,
 which switches between the repositories already opened and scans a folder for new ones.
 
+Next to it, `branches` lists every local branch: how far ahead and behind it stands from the
+base branch, named at the top of the list, and what the remote knows of it. A branch nobody
+has pushed says so, and so does one whose remote branch has since been deleted.
+
 ## Building the front end
 
 ```
@@ -42,7 +46,7 @@ standard library.
 
 ## How it reads a repository
 
-It runs `git log`, `git show` and `git for-each-ref` and parses their output. **It never writes
+It runs `git log`, `git show`, `git rev-list` and `git for-each-ref` and parses their output. **It never writes
 to a repository**, and it holds no lock, so it is safe to leave open while you work.
 
 The lane assignment is the whole trick, and it lives in `build_graph`. A lane holds the hash it

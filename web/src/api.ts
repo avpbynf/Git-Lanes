@@ -39,6 +39,30 @@ export interface Graph {
   fingerprint: string
 }
 
+/** Where a branch stands against the remote branch it tracks, if it tracks one. */
+export interface Upstream {
+  name: string
+  behind: number
+  ahead: number
+  gone: boolean
+}
+
+export interface Branch {
+  name: string
+  head: string
+  t: string
+  current: boolean
+  base: string | null
+  behind: number
+  ahead: number
+  upstream: Upstream | null
+}
+
+export interface BranchList {
+  base: string | null
+  branches: Branch[]
+}
+
 export interface RepoEntry {
   path: string
   name: string
@@ -106,6 +130,11 @@ export const fetchGraph = (repo: string | null, scope: Scope, limit: number) =>
   desktop
     ? (desktop('graph', { repo, scope, limit }) as Promise<Graph>)
     : get<Graph>('/api/graph', { repo: repo ?? undefined, scope, limit })
+
+export const fetchBranches = (repo: string | null) =>
+  desktop
+    ? (desktop('branches', { repo }) as Promise<BranchList>)
+    : get<BranchList>('/api/branches', { repo: repo ?? undefined })
 
 export const fetchFingerprint = (repo: string | null) =>
   desktop
