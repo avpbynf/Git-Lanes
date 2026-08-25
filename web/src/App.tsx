@@ -29,7 +29,7 @@ export default function App() {
   const [regex, setRegex] = useState(() => localStorage.getItem('regex') === 'yes')
   const [matchCase, setMatchCase] = useState(() => localStorage.getItem('case') === 'yes')
   const [selected, setSelected] = useState<string | null>(null)
-  const [jump, setJump] = useState<{ h: string; n: number } | null>(null)
+  const [jump, setJump] = useState<{ h: string; n: number; near?: boolean } | null>(null)
   // the ref the reading sits on, spelled in full, which is what the tree highlights
   const [taken, setTaken] = useState<string | null>(null)
   const [settings, setSettings] = useState<Settings>(readSettings)
@@ -80,21 +80,6 @@ export default function App() {
     }
   }, [scope])
 
-  useEffect(() => {
-    const keys = (event: KeyboardEvent) => {
-      if (event.key === '/' && document.activeElement !== search.current) {
-        event.preventDefault()
-        search.current?.focus()
-        return
-      }
-      if (event.key !== 'Escape') return
-      if (selected) setSelected(null)
-      else if (query) setQuery('')
-    }
-    addEventListener('keydown', keys)
-    return () => removeEventListener('keydown', keys)
-  }, [selected, query])
-
   const pick = (path: string) => {
     setSelected(null)
     setTaken(null)
@@ -133,13 +118,52 @@ export default function App() {
    * the tree, so the tree lights up the same way. When several branches stand on
    * the commit, the one already lit wins, then the one HEAD is on.
    */
-  const choose = (hash: string) => {
+  const choose = useCallback((hash: string) => {
     setSelected(hash)
     const commit = graph?.commits.find((one) => one.h === hash)
     const ends = commit?.refs.filter((ref) => ref.k === 'local').map((ref) => HEADS + ref.n) ?? []
     if (!ends.length || ends.includes(taken ?? '')) return
     setTaken(ends.find((name) => name === HEADS + graph?.branch) ?? ends[0])
-  }
+  }, [graph, taken])
+
+  /**
+   * The commit one row down or up, taken as if it had been clicked.
+   *
+   * With nothing taken yet either arrow lands on the first row, which is where
+   * the graph opens. The row is brought into view and no further: one already
+   * on screen leaves the graph where it stands.
+   */
+  const step = useCallback((delta: number) => {
+    const commits = graph?.commits
+    if (!commits?.length) return
+    const at = commits.findIndex((commit) => commit.h === selected)
+    const next = commits[Math.min(Math.max(at + delta, 0), commits.length - 1)]
+    if (!next || next.h === selected) return
+    choose(next.h)
+    setJump((held) => ({ h: next.h, n: (held?.n ?? 0) + 1, near: true }))
+  }, [graph, selected, choose])
+
+  useEffect(() => {
+    const keys = (event: KeyboardEvent) => {
+      if (event.key === '/' && document.activeElement !== search.current) {
+        event.preventDefault()
+        search.current?.focus()
+        return
+      }
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        // a field being typed in owns its own arrows, caret and history alike
+        if (document.activeElement?.tagName === 'INPUT') return
+        event.preventDefault()
+        step(event.key === 'ArrowDown' ? 1 : -1)
+        return
+      }
+      if (event.key !== 'Escape') return
+      if (selected) setSelected(null)
+      else if (query) setQuery('')
+    }
+    addEventListener('keydown', keys)
+    return () => removeEventListener('keydown', keys)
+  }, [selected, query, step])
 
   const narrow = (patch: Partial<Filters>) => setFilters((held) => ({ ...held, ...patch }))
 

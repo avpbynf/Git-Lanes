@@ -38,7 +38,8 @@ interface Props {
   /** Whether git was asked to leave commits out, which changes what nothing means. */
   narrowed: boolean
   selected: string | null
-  jump: { h: string; n: number } | null
+  /** `near` scrolls no further than it takes to show the row, rather than centring it. */
+  jump: { h: string; n: number; near?: boolean } | null
   onSelect: (hash: string) => void
 }
 
@@ -83,7 +84,18 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
     const index = graph.commits.findIndex((commit) => commit.h === jump.h)
     if (index < 0) return
     jumped.current = jump.n
-    element.scrollTop = Math.max(0, index * ROW - element.clientHeight / 2 + ROW / 2)
+    const top = index * ROW
+    if (!jump.near) {
+      element.scrollTop = Math.max(0, top - element.clientHeight / 2 + ROW / 2)
+      return
+    }
+    // walking the graph one row at a time moves it one row at a time: recentring
+    // on every step would throw away the place the eye was reading
+    const from = element.scrollTop
+    if (top < from) element.scrollTop = top
+    else if (top + ROW > from + element.clientHeight) {
+      element.scrollTop = top + ROW - element.clientHeight
+    }
   }, [jump, graph])
 
   const onScroll = () => {
