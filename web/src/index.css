@@ -405,55 +405,24 @@ button:disabled { cursor: default; color: var(--faint); }
 
 /* the commit panel */
 
-.panel {
-  background: var(--panel);
-  border-left: 1px solid var(--line);
-  display: flex;
-  flex-direction: column;
-  max-width: calc(100vw - 200px);
-  z-index: 5;
-}
+/* three columns, and the middle one is what the other two leave */
 
-/* over the graph it slides in from the right, and stops short of the bar,
-   which keeps the window controls reachable with a commit open */
-.panel.over {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  transform: translateX(100%);
-  transition: transform 0.12s ease-out;
-}
-
-.panel.over.open { transform: none; }
-
-/* pinned, the panel is a column of its own and the graph gives up the room */
-.panel.pinned { position: relative; flex: none; }
-
-/* the tree of refs, the same panel mirrored */
-
+.panel,
 .refs-panel {
-  background: var(--panel);
-  border-right: 1px solid var(--line);
+  position: relative;
+  flex: none;
   display: flex;
   flex-direction: column;
-  max-width: calc(100vw - 200px);
+  background: var(--panel);
+  max-width: calc(50vw - 100px);
   z-index: 5;
 }
 
-.refs-panel.over {
-  position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  transform: translateX(-100%);
-  transition: transform 0.12s ease-out;
-}
+.panel { border-left: 1px solid var(--line); }
+.refs-panel { border-right: 1px solid var(--line); }
 
-.refs-panel.over.open { transform: none; }
-.refs-panel.pinned { position: relative; flex: none; }
-/* closed, a pinned panel gives its room back rather than showing an empty column */
-.refs-panel.pinned:not(.open) { display: none; }
+/* turned off in the menu, a column gives its room back rather than standing empty */
+.gone { display: none; }
 
 .panel header,
 .refs-panel header {
@@ -465,8 +434,6 @@ button:disabled { cursor: default; color: var(--faint); }
   background: var(--bg-alt);
   flex: none;
 }
-
-.pin.on { color: var(--accent); }
 
 .refs-panel .hunt {
   padding: 6px 8px;

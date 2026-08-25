@@ -68,6 +68,20 @@ export function SettingsMenu({ settings, onChange }: Props) {
             onPick={(value) => onChange({ theme: value as Theme })}
           />
           <Choice
+            label="the tree of refs"
+            hint="the column on the left"
+            value={settings.showRefs ? 'yes' : 'no'}
+            options={[['yes', 'shown'], ['no', 'hidden']]}
+            onPick={(value) => onChange({ showRefs: value === 'yes' })}
+          />
+          <Choice
+            label="the commit panel"
+            hint="the column on the right"
+            value={settings.showPanel ? 'yes' : 'no'}
+            options={[['yes', 'shown'], ['no', 'hidden']]}
+            onPick={(value) => onChange({ showPanel: value === 'yes' })}
+          />
+          <Choice
             label="a branch clicked"
             hint="in the tree of refs on the left"
             value={settings.branchClick}

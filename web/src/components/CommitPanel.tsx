@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchCommit, type Commit, type CommitDetail } from '../api'
 import { usePanelWidth } from '../panel'
-import { CLOSE, PIN } from './icons'
 
 const MIN_WIDTH = 320
 const WIDTH = 440
@@ -14,9 +13,7 @@ interface Props {
   hash: string | null
   /** What the graph already knows of the commit, so the panel answers the click at once. */
   known: Commit | null
-  pinned: boolean
-  onPin: (pinned: boolean) => void
-  onClose: () => void
+  shown: boolean
 }
 
 interface Answer {
@@ -25,7 +22,7 @@ interface Answer {
   error?: string
 }
 
-export function CommitPanel({ repo, hash, known, pinned, onPin, onClose }: Props) {
+export function CommitPanel({ repo, hash, known, shown }: Props) {
   const [answer, setAnswer] = useState<Answer | null>(null)
   const [slowFor, setSlowFor] = useState<string | null>(null)
   const { width, grip } = usePanelWidth('panel', WIDTH, MIN_WIDTH, 'right')
@@ -64,24 +61,11 @@ export function CommitPanel({ repo, hash, known, pinned, onPin, onClose }: Props
   const title = held ? (detail ? first : undefined) : known?.s
   const waiting = Boolean(hash) && held?.hash !== hash && slowFor === hash
 
-  const className = ['panel', pinned ? 'pinned' : 'over', hash ? 'open' : '']
-    .filter(Boolean)
-    .join(' ')
-
   return (
-    <aside className={className} style={{ width }}>
+    <aside className={shown ? 'panel' : 'panel gone'} style={{ width }}>
       <div className="grip" {...grip} />
       <header>
         <span className="strong">commit</span>
-        <span className="spacer" />
-        <button
-          className={pinned ? 'icon pin on' : 'icon pin'}
-          title={pinned ? 'let it float over the graph' : 'hold its own room'}
-          onClick={() => onPin(!pinned)}
-        >
-          {PIN}
-        </button>
-        <button className="icon" title="close" onClick={onClose}>{CLOSE}</button>
       </header>
       <div className={waiting ? 'panel-body waiting' : 'panel-body'}>
         {!hash && <p className="empty">pick a commit in the graph</p>}

@@ -3,21 +3,17 @@ import { fetchBranches, type Branch, type BranchList, type PlainRef } from '../a
 import { ago } from '../lanes'
 import { usePanelWidth } from '../panel'
 import { countOf, tree, type Leaf, type Named, type Node } from '../refs'
-import { CLOSE, PIN } from './icons'
 
 const MIN_WIDTH = 200
 const WIDTH = 300
 
 interface Props {
   repo: string | null
-  open: boolean
-  pinned: boolean
+  shown: boolean
   /** The ref the reading sits on, which is what the tree highlights. */
   active: string | null
   /** Moves whenever a ref does, which is when the tree is worth reading again. */
   fingerprint: string
-  onPin: (pinned: boolean) => void
-  onClose: () => void
   /** Only a local branch can bound the graph, so the kind travels with the name. */
   onTake: (name: string, head: string, local: boolean) => void
 }
@@ -86,16 +82,14 @@ function Twig<T extends Named>({ nodes, depth, shut, onFold, leaf }: TwigProps<T
   )
 }
 
-export function RefsPanel({
-  repo, open, pinned, active, fingerprint, onPin, onClose, onTake,
-}: Props) {
+export function RefsPanel({ repo, shown, active, fingerprint, onTake }: Props) {
   const [answer, setAnswer] = useState<Answer | null>(null)
   const [hunt, setHunt] = useState('')
   // remote branches and tags are many and rarely what one is looking at
   const [shut, setShut] = useState<Set<string>>(() => new Set(['\0remote', '\0tags']))
 
   useEffect(() => {
-    if (!open) return
+    if (!shown) return
     let live = true
     fetchBranches(repo)
       .then((list) => live && setAnswer({ repo, list }))
@@ -103,7 +97,7 @@ export function RefsPanel({
     return () => {
       live = false
     }
-  }, [open, repo, fingerprint])
+  }, [shown, repo, fingerprint])
 
   const { width, grip } = usePanelWidth('refs', WIDTH, MIN_WIDTH, 'left')
 
@@ -115,8 +109,8 @@ export function RefsPanel({
     })
 
   // the answer carries the repository it read, so a stale tree never shows under another one
-  const shown = answer?.repo === repo ? answer : null
-  const list = shown?.list
+  const answered = answer?.repo === repo ? answer : null
+  const list = answered?.list
   const needle = hunt.trim().toLowerCase()
 
   // the hunt narrows the flat list, and the tree is built from what survives, so
@@ -170,18 +164,9 @@ export function RefsPanel({
   )
 
   return (
-    <aside className={['refs-panel', pinned ? 'pinned' : 'over', open ? 'open' : ''].filter(Boolean).join(' ')} style={{ width }}>
+    <aside className={shown ? 'refs-panel' : 'refs-panel gone'} style={{ width }}>
       <header>
         <span className="strong">refs</span>
-        <span className="spacer" />
-        <button
-          className={pinned ? 'icon pin on' : 'icon pin'}
-          title={pinned ? 'let it float over the graph' : 'hold its own room'}
-          onClick={() => onPin(!pinned)}
-        >
-          {PIN}
-        </button>
-        <button className="icon" title="close" onClick={onClose}>{CLOSE}</button>
       </header>
 
       <div className="hunt">
@@ -194,8 +179,8 @@ export function RefsPanel({
       </div>
 
       <div className="tree">
-        {shown?.error && <p className="empty">{shown.error}</p>}
-        {!shown && <p className="empty">reading...</p>}
+        {answered?.error && <p className="empty">{answered.error}</p>}
+        {!answered && <p className="empty">reading...</p>}
         {list && (
           <>
             {section('\0local', 'local', list.branches.length,

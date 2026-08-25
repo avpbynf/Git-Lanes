@@ -6,11 +6,15 @@ export type BranchClick = 'reveal' | 'filter'
 export interface Settings {
   theme: Theme
   branchClick: BranchClick
-  /** The refs panel: whether it is showing, and whether it holds its own room. */
-  refsOpen: boolean
-  refsPinned: boolean
-  /** The commit panel only holds its own room; a commit is what opens it. */
-  panelPinned: boolean
+  /**
+   * The two side panels.
+   *
+   * Both are columns of their own, always there, each dragged to the width it
+   * deserves. Whoever wants the graph alone says so here, once, rather than
+   * opening and closing them all day.
+   */
+  showRefs: boolean
+  showPanel: boolean
 }
 
 const KEY = 'settings'
@@ -18,9 +22,8 @@ const KEY = 'settings'
 const FALLBACK: Settings = {
   theme: matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark',
   branchClick: 'reveal',
-  refsOpen: false,
-  refsPinned: false,
-  panelPinned: false,
+  showRefs: true,
+  showPanel: true,
 }
 
 /** A key the stored shape never had falls back, so an old blob never breaks a boot. */
