@@ -11,6 +11,8 @@ use std::process::Command;
 
 const FIELD: char = '\u{1f}';
 const RECORD: char = '\u{1e}';
+/// What the front end prefixes a scope with to name one branch.
+const BRANCH: &str = "branch:";
 
 /// Run git in a repository. On Windows the child must not open a console, or
 /// every call would flash a black window over the app.
@@ -208,10 +210,14 @@ fn read_commits(repo: &str, scope: &str, limit: usize) -> Result<Vec<Raw>, Strin
         r = RECORD
     );
     let limit_arg = limit.to_string();
+    let branch_ref = scope.strip_prefix(BRANCH).map(|name| format!("refs/heads/{name}"));
     let mut args = vec!["log", "--date-order", format.as_str()];
     if scope == "all" {
         // not --all: that one drags in refs/stash and the note refs
         args.extend_from_slice(&["--branches", "--tags", "--remotes", "HEAD"]);
+    } else if let Some(reference) = branch_ref.as_deref() {
+        // spelled in full: a branch called -f stays a branch and never an option
+        args.push(reference);
     }
     if limit > 0 {
         args.extend_from_slice(&["-n", limit_arg.as_str()]);
