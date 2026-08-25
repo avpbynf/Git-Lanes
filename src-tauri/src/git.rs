@@ -11,8 +11,8 @@ use std::process::Command;
 
 const FIELD: char = '\u{1f}';
 const RECORD: char = '\u{1e}';
-/// What the front end prefixes a scope with to name one branch.
-const BRANCH: &str = "branch:";
+/// What the front end prefixes a scope with to name one ref.
+const REF: &str = "ref:";
 
 /// `--author=<value>` and the like, or nothing at all when the value is empty.
 fn some_arg(flag: &str, value: &str) -> Option<String> {
@@ -242,7 +242,11 @@ fn read_commits(
         r = RECORD
     );
     let limit_arg = limit.to_string();
-    let branch_ref = scope.strip_prefix(BRANCH).map(|name| format!("refs/heads/{name}"));
+    // a scope must spell refs/... in full, or it is no scope: that is what keeps a
+    // ref called -f a ref and never an option. A tag starts a history as a branch does.
+    let wanted = scope
+        .strip_prefix(REF)
+        .filter(|name| name.starts_with("refs/"));
     let author_arg = some_arg("--author=", &filters.author);
     let since_arg = some_arg("--since=", &filters.since);
     let wanted: Vec<&str> = filters
@@ -253,12 +257,11 @@ fn read_commits(
         .collect();
     let sort = if order == "topo" { "--topo-order" } else { "--date-order" };
     let mut args = vec!["log", sort, format.as_str()];
-    if scope == "all" {
+    if let Some(reference) = wanted {
+        args.push(reference);
+    } else {
         // not --all: that one drags in refs/stash and the note refs
         args.extend_from_slice(&["--branches", "--tags", "--remotes", "HEAD"]);
-    } else if let Some(reference) = branch_ref.as_deref() {
-        // spelled in full: a branch called -f stays a branch and never an option
-        args.push(reference);
     }
     if let Some(arg) = author_arg.as_deref() {
         args.push(arg);
