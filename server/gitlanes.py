@@ -228,6 +228,66 @@ def commit_detail(repo, h):
     }
 
 
+def read_branch_refs(repo):
+    """Local branches, most recently committed first, with their upstream."""
+    fmt = FIELD.join([
+        "%(refname:short)", "%(objectname)", "%(committerdate:iso-strict)",
+        "%(upstream:short)", "%(upstream:track,nobracket)",
+    ])
+    listing = git(repo, "for-each-ref", "--sort=-committerdate", "--format=" + fmt, "refs/heads")
+    return [line.split(FIELD) for line in listing.splitlines() if line.strip()]
+
+
+def pick_base(names, head, branch=None):
+    """The branch a divergence is measured against, None when there is no other one."""
+    for candidate in (head, "dev", "main", names[0] if names else None):
+        if candidate and candidate != branch and candidate in names:
+            return candidate
+    return None
+
+
+def divergence(repo, base, branch):
+    """What each side holds that the other does not, base first.
+
+    Answers None when the comparison cannot be made, which is what an upstream
+    whose remote branch was deleted does.
+    """
+    counts = git_soft(repo, "rev-list", "--left-right", "--count", base + "..." + branch).split()
+    if len(counts) != 2:
+        return None
+    return int(counts[0]), int(counts[1])
+
+
+def branch_payload(repo):
+    rows = read_branch_refs(repo)
+    names = [row[0] for row in rows]
+    head = git(repo, "branch", "--show-current").strip()
+    branches = []
+    for name, tip, when, upstream, track in rows:
+        against = pick_base(names, head, name)
+        behind, ahead = (divergence(repo, against, name) if against else None) or (0, 0)
+        pushed = None
+        if upstream:
+            counts = None if track == "gone" else divergence(repo, upstream, name)
+            pushed = {
+                "name": upstream,
+                "behind": counts[0] if counts else 0,
+                "ahead": counts[1] if counts else 0,
+                "gone": counts is None,
+            }
+        branches.append({
+            "name": name,
+            "head": tip,
+            "t": when,
+            "current": name == head,
+            "base": against,
+            "behind": behind,
+            "ahead": ahead,
+            "upstream": pushed,
+        })
+    return {"base": pick_base(names, head), "branches": branches}
+
+
 # --------------------------------------------------------- the list of repositories
 
 def config_path():
@@ -373,6 +433,8 @@ class Handler(BaseHTTPRequestHandler):
                 repo = self.which_repo(query)
                 limit = int(query.get("limit", ["400"])[0])
                 self.send_json(graph_payload(repo, query.get("scope", ["all"])[0], max(limit, 0)))
+            elif url.path == "/api/branches":
+                self.send_json(branch_payload(self.which_repo(query)))
             elif url.path == "/api/fingerprint":
                 self.send_json({"fingerprint": fingerprint(self.which_repo(query))})
             elif url.path == "/api/commit":
