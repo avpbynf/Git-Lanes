@@ -63,7 +63,6 @@ export function RepoPicker({ repos, current, onPick, onChanged }: Props) {
     <div className="picker" ref={box}>
       <button className="pick" onClick={() => setOpen(!open)}>
         <span className="strong">{active?.name ?? 'no repository'}</span>
-        {active?.branch && <span className="chip branch">{active.branch}{active.dirty ? ' *' : ''}</span>}
         <span className="caret">{open ? '^' : 'v'}</span>
       </button>
 

@@ -19,19 +19,28 @@ interface Answer {
  * polls nothing and catches up the moment it comes back.
  *
  * The answer carries the question it answers, so switching repository shows an
- * empty view at once instead of the previous repository for one frame.
+ * empty view at once instead of the previous repository for one frame. The
+ * limit is deliberately out of that question: asking for more commits must
+ * leave the ones already drawn where the eye left them, not blank the view.
+ *
+ * Only the last read asked for is allowed to answer, so a slow one landing
+ * after a newer one never shortens the graph back.
  */
 export function useGraph(repo: string | null, scope: Scope, limit: number) {
-  const key = `${repo ?? ''}|${scope}|${limit}`
+  const key = `${repo ?? ''}|${scope}`
   const [answer, setAnswer] = useState<Answer | null>(null)
   const fingerprint = useRef<string | null>(null)
+  const ticket = useRef(0)
 
   const load = useCallback(async () => {
+    const mine = ++ticket.current
     try {
       const graph = await fetchGraph(repo, scope, limit)
+      if (mine !== ticket.current) return
       fingerprint.current = graph.fingerprint
       setAnswer({ key, graph, at: Date.now() })
     } catch (err) {
+      if (mine !== ticket.current) return
       setAnswer({ key, error: err instanceof Error ? err.message : String(err), at: Date.now() })
     }
   }, [repo, scope, limit, key])

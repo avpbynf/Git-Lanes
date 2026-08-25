@@ -1,9 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { fetchCommit, type CommitDetail } from '../api'
+import type { PanelMode } from '../settings'
+
+const MIN_WIDTH = 320
+const WIDTH = 440
 
 interface Props {
   repo: string | null
   hash: string | null
+  mode: PanelMode
   onClose: () => void
 }
 
@@ -13,8 +18,15 @@ interface Answer {
   error?: string
 }
 
-export function CommitPanel({ repo, hash, onClose }: Props) {
+function heldWidth(): number {
+  const held = Number(localStorage.getItem('panel'))
+  return held >= MIN_WIDTH ? held : WIDTH
+}
+
+export function CommitPanel({ repo, hash, mode, onClose }: Props) {
   const [answer, setAnswer] = useState<Answer | null>(null)
+  const [width, setWidth] = useState(heldWidth)
+  const sizing = useRef(false)
 
   useEffect(() => {
     if (!hash) return
@@ -27,22 +39,44 @@ export function CommitPanel({ repo, hash, onClose }: Props) {
     }
   }, [repo, hash])
 
+  // the pointer is captured, so the drag survives leaving the few pixels it started on
+  const grab = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return
+    event.currentTarget.setPointerCapture(event.pointerId)
+    sizing.current = true
+  }
+
+  const size = (event: PointerEvent<HTMLDivElement>) => {
+    if (sizing.current) setWidth(Math.max(MIN_WIDTH, Math.round(innerWidth - event.clientX)))
+  }
+
+  const settle = (event: PointerEvent<HTMLDivElement>) => {
+    if (!sizing.current) return
+    sizing.current = false
+    event.currentTarget.releasePointerCapture(event.pointerId)
+    localStorage.setItem('panel', String(width))
+  }
+
   // the answer carries its own hash, so a stale one never shows under a new commit
   const shown = answer?.hash === hash ? answer : null
   const detail = shown?.detail
   const [title, ...rest] = (detail?.body ?? '').split('\n')
   const body = rest.join('\n').trim()
 
+  const className = ['panel', mode, hash ? 'open' : ''].filter(Boolean).join(' ')
+
   return (
-    <aside className={hash ? 'panel open' : 'panel'}>
+    <aside className={className} style={{ width }}>
+      <div className="grip" onPointerDown={grab} onPointerMove={size} onPointerUp={settle} />
       <header>
         <span className="strong">commit</span>
         <span className="spacer" />
-        <button onClick={onClose}>close</button>
+        {mode === 'over' && <button onClick={onClose}>close</button>}
       </header>
       <div className="panel-body">
-        {shown?.error && <p className="empty">{shown.error}</p>}
-        {!shown && <p className="empty">reading...</p>}
+        {!hash && <p className="empty">pick a commit in the graph</p>}
+        {hash && shown?.error && <p className="empty">{shown.error}</p>}
+        {hash && !shown && <p className="empty">reading...</p>}
         {detail && (
           <>
             <h2>{title}</h2>

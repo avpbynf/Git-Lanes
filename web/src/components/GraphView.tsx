@@ -6,12 +6,17 @@ import {
 
 const OVERSCAN = 10
 
+/** How close to the end the eye must get before the graph asks for more. */
+const REACH = ROW * 20
+
 interface Props {
   graph: Graph
   theme: Theme
   query: string
   selected: string | null
+  jump: { h: string; n: number } | null
   onSelect: (hash: string) => void
+  onMore: () => void
 }
 
 function matches(commit: Commit, needle: string): boolean {
@@ -24,12 +29,13 @@ function matches(commit: Commit, needle: string): boolean {
   )
 }
 
-export function GraphView({ graph, theme, query, selected, onSelect }: Props) {
+export function GraphView({ graph, theme, query, selected, jump, onSelect, onMore }: Props) {
   const scroller = useRef<HTMLDivElement>(null)
   const [scrollTop, setScrollTop] = useState(0)
   const [viewport, setViewport] = useState(800)
   // the commit the eye is on, so new commits landing on top do not move it
   const anchor = useRef<{ h: string; delta: number } | null>(null)
+  const jumped = useRef(0)
 
   useEffect(() => {
     const element = scroller.current
@@ -52,6 +58,21 @@ export function GraphView({ graph, theme, query, selected, onSelect }: Props) {
     element.scrollTop = index >= 0 ? index * ROW + held.delta : 0
   }, [graph])
 
+  /**
+   * A commit asked for from outside, put in the middle of the view.
+   *
+   * The nonce is spent only once the commit is really there, so a tip that the
+   * graph has not read yet still lands the day a wider read brings it in.
+   */
+  useEffect(() => {
+    const element = scroller.current
+    if (!element || !jump || jump.n === jumped.current) return
+    const index = graph.commits.findIndex((commit) => commit.h === jump.h)
+    if (index < 0) return
+    jumped.current = jump.n
+    element.scrollTop = Math.max(0, index * ROW - element.clientHeight / 2 + ROW / 2)
+  }, [jump, graph])
+
   const onScroll = () => {
     const element = scroller.current
     if (!element) return
@@ -60,6 +81,8 @@ export function GraphView({ graph, theme, query, selected, onSelect }: Props) {
     const commit = graph.commits[row]
     anchor.current =
       element.scrollTop < 4 || !commit ? null : { h: commit.h, delta: element.scrollTop - row * ROW }
+    // the graph grows as the eye reaches its end, which is what replaces a limit control
+    if (element.scrollHeight - element.scrollTop - element.clientHeight < REACH) onMore()
   }
 
   const count = graph.commits.length
@@ -139,9 +162,10 @@ export function GraphView({ graph, theme, query, selected, onSelect }: Props) {
             const label = dayLabel(when)
             const previous = graph.commits[first + index - 1]
             const newDay = !previous || dayLabel(new Date(previous.t)) !== label
+            // the topmost row has the bar above it, and a rule there reads as a thick border
             const className = [
               'row',
-              newDay ? 'day' : '',
+              newDay && first + index > 0 ? 'day' : '',
               commit.h === selected ? 'sel' : '',
               matches(commit, needle) ? '' : 'faded',
             ].filter(Boolean).join(' ')

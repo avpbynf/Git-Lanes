@@ -17,14 +17,21 @@ It exists because reading where a branch stands should not cost opening an IDE.
 The page redraws on its own whenever a ref moves, and every ten seconds in any case. It pauses
 while its tab is hidden and catches up when you come back to it.
 
-Click a commit for its message and the files it touched. `/` focuses the filter, which dims
-what does not match instead of hiding it, so the shape of the graph stays readable. Escape
-closes the panel, then clears the filter. The repository name on the left opens the picker,
-which switches between the repositories already opened and scans a folder for new ones.
+Click a commit for its message and the files it touched. The panel that opens is resized by
+its left edge, and keeps that width. `/` focuses the filter, which dims what does not match
+instead of hiding it, so the shape of the graph stays readable. Escape closes the panel, then
+clears the filter. The repository name on the left opens the picker, which switches between
+the repositories already opened and scans a folder for new ones.
 
-Next to it, `branches` lists every local branch: how far ahead and behind it stands from the
-base branch, named at the top of the list, and what the remote knows of it. A branch nobody
-has pushed says so, and so does one whose remote branch has since been deleted.
+Next to it sits the branch HEAD is on. Its list holds every local branch: how far ahead and
+behind it stands from the base branch, named at the top of the list, and what the remote knows
+of it. A branch nobody has pushed says so, and so does one whose remote branch has since been
+deleted. Clicking one scrolls the graph to its tip and opens it.
+
+The graph reads four hundred commits and reads four hundred more each time the scrolling
+reaches its end, so nothing has to be asked for in advance. The cog opens what is worth
+choosing: the theme, whether a branch clicked goes to its tip or bounds the graph to it
+instead, and whether the commit panel covers the graph or sits beside it for good.
 
 ## Building the front end
 

@@ -89,7 +89,8 @@ export interface CommitDetail {
   merge: boolean
 }
 
-export type Scope = 'all' | 'head'
+/** `all`, or `branch:<name>`. The backends read it, the front end spells it in scope.ts. */
+export type Scope = string
 
 async function get<T>(path: string, params: Record<string, string | number | undefined> = {}): Promise<T> {
   const url = new URL(path, location.origin)

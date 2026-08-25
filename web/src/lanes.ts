@@ -80,11 +80,6 @@ export function ago(date: Date, now = Date.now()): string {
   return `${dayLabel(date)} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
-export function clockOf(time: number): string {
-  const date = new Date(time)
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
-}
-
 /** A stable colour for an author, so the initials read as the same person. */
 export function tint(name: string): string {
   let hash = 0
