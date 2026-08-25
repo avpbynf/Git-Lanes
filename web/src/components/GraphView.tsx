@@ -6,8 +6,15 @@ import {
 
 const OVERSCAN = 10
 
-/** How close to the end the eye must get before the graph asks for more. */
-const REACH = ROW * 20
+/**
+ * How close to the end the eye must get before the graph asks for more.
+ *
+ * A read costs about the same whatever its depth, some three hundred
+ * milliseconds of spawning git either way, so the page is large and the
+ * asking is early: a hundred rows of warning is enough for the next page to
+ * land before anyone reaches the one being read.
+ */
+const REACH = ROW * 100
 
 interface Props {
   graph: Graph
