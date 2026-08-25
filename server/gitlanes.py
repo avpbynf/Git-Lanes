@@ -355,12 +355,7 @@ class Handler(BaseHTTPRequestHandler):
             with open(target, "rb") as handle:
                 self.send_payload(handle.read(), kind)
             return
-        page = os.path.join(HERE, "app.html")
-        if path in ("/", "/index.html") and os.path.isfile(page):
-            with open(page, "rb") as handle:
-                self.send_payload(handle.read(), "text/html; charset=utf-8")
-            return
-        self.fail(404, "no front end built yet: run npm run build in web/")
+        self.fail(404, "no front end built: run bun install and bun run build in web/")
 
     def do_GET(self):
         url = urlparse(self.path)
