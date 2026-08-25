@@ -3,6 +3,10 @@
      a dark page keeps the light scrollbar of the default scheme */
   color-scheme: dark;
   --row: 28px;
+  /* the two strips under the bar, one over the tree and one over the history.
+     They meet at a corner, so they hold one height between them rather than
+     each ending up wherever its own padding lands it */
+  --strip: 35px;
   /* the day label and nothing else, so it is as wide as `25 Aug 24` and no wider */
   --gutter: 64px;
   --bg: #1b1d22;
@@ -284,7 +288,8 @@ button:disabled { cursor: default; color: var(--faint); }
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 8px;
+  height: var(--strip);
+  padding: 0 8px;
   border-bottom: 1px solid var(--line);
   flex: none;
 }
@@ -486,7 +491,10 @@ button:disabled { cursor: default; color: var(--faint); }
 
 /* one field for everything under it, projects as much as branches and tags */
 .sidebar .hunt {
-  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  height: var(--strip);
+  padding: 0 8px;
   border-bottom: 1px solid var(--line);
   flex: none;
 }
