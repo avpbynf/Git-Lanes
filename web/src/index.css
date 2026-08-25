@@ -326,7 +326,23 @@ button:disabled { cursor: default; color: var(--faint); }
   position: relative;
 }
 
-.body > .empty { flex: 1; }
+/* everything right of the tree: the filters, then what they filter. The tree
+   keeps the full height, since a search over commits is none of its business */
+.right {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.under {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  position: relative;
+}
+
+.under > .empty { flex: 1; }
 
 .scroller {
   flex: 1;

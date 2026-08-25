@@ -200,10 +200,15 @@ export const fetchCommit = (repo: string | null, hash: string) =>
     ? (desktop('commit_detail', { repo, hash }) as Promise<CommitDetail>)
     : get<CommitDetail>('/api/commit', { repo: repo ?? undefined, h: hash })
 
+/** What the boot call answers. The version comes with it rather than on its own. */
+export interface RepoList {
+  repos: RepoEntry[]
+  default: string | null
+  version: string
+}
+
 export const fetchRepos = () =>
-  desktop
-    ? (desktop('repos') as Promise<{ repos: RepoEntry[]; default: string | null }>)
-    : get<{ repos: RepoEntry[]; default: string | null }>('/api/repos')
+  desktop ? (desktop('repos') as Promise<RepoList>) : get<RepoList>('/api/repos')
 
 export const discoverRepos = (root: string) =>
   desktop

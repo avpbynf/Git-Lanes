@@ -57,6 +57,8 @@ fn which_repo(asked: Option<String>) -> Result<String, String> {
 struct RepoList {
     repos: Vec<RepoEntry>,
     default: Option<String>,
+    /// Taken from the manifest at compile time, so it cannot drift from the build.
+    version: &'static str,
 }
 
 /// Read git off the main thread.
@@ -83,6 +85,7 @@ async fn repos() -> Result<RepoList, String> {
         Ok(RepoList {
             default: held.first().cloned(),
             repos: held.iter().map(|path| git::describe(path)).collect(),
+            version: env!("CARGO_PKG_VERSION"),
         })
     })
     .await

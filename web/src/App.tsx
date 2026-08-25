@@ -33,12 +33,14 @@ export default function App() {
   // the ref the reading sits on, spelled in full, which is what the tree highlights
   const [taken, setTaken] = useState<string | null>(null)
   const [settings, setSettings] = useState<Settings>(readSettings)
+  const [version, setVersion] = useState('')
   const search = useRef<HTMLInputElement>(null)
 
   const refreshRepos = useCallback(async () => {
     try {
       const listed = await fetchRepos()
       setRepos(listed.repos)
+      setVersion(listed.version)
       setCurrent((held) => held ?? listed.default ?? listed.repos[0]?.path ?? null)
     } catch {
       // a backend that is not answering is reported by the graph itself
@@ -173,34 +175,13 @@ export default function App() {
     <>
       <header className="bar" {...dragProps}>
         <SettingsMenu settings={settings} onChange={change} />
-        {/* a name, not a control: the projects are picked in the tree on the left */}
-        <span className="title">{graph?.repo ?? ''}</span>
+        {/* the tool, not the repository: which one is open is what the tree says */}
+        <span className="title">gitlanes{version && ` ${version}`}</span>
         <span className="spacer" />
         {/* nothing to say while it works: only a failure is worth a line in the bar */}
         {error && <span className="status bad">{error}</span>}
         <WindowControls />
       </header>
-
-      <FilterBar
-        search={search}
-        query={query}
-        onQuery={setQuery}
-        regex={regex}
-        matchCase={matchCase}
-        broken={found.broken}
-        onMode={mode}
-        authors={authors}
-        filters={filters}
-        onFilters={narrow}
-        order={order}
-        onOrder={() => {
-          const next: Order = order === 'date' ? 'topo' : 'date'
-          setOrder(next)
-          localStorage.setItem('order', next)
-        }}
-        freshness={freshness}
-        onReload={() => void reload()}
-      />
 
       <main className="body">
         <Sidebar
@@ -214,25 +195,51 @@ export default function App() {
           onTake={take}
         />
 
-        {graph
-          ? <GraphView
-              graph={graph}
-              theme={settings.theme}
-              match={found.match}
-              narrowed={filtering(filters)}
-              selected={selected}
-              jump={jump}
-              onSelect={choose}
-            />
-          : <p className="empty">{error ?? 'reading the repository...'}</p>}
+        {/* the filters read commits, so they start where the tree ends */}
+        <div className="right">
+          <FilterBar
+            search={search}
+            query={query}
+            onQuery={setQuery}
+            regex={regex}
+            matchCase={matchCase}
+            broken={found.broken}
+            onMode={mode}
+            authors={authors}
+            filters={filters}
+            onFilters={narrow}
+            order={order}
+            onOrder={() => {
+              const next: Order = order === 'date' ? 'topo' : 'date'
+              setOrder(next)
+              localStorage.setItem('order', next)
+            }}
+            freshness={freshness}
+            onReload={() => void reload()}
+          />
 
-        <CommitPanel
-          repo={current}
-          hash={selected}
-          known={chosen}
-          mode={settings.panel}
-          onClose={() => setSelected(null)}
-        />
+          <div className="under">
+            {graph
+              ? <GraphView
+                  graph={graph}
+                  theme={settings.theme}
+                  match={found.match}
+                  narrowed={filtering(filters)}
+                  selected={selected}
+                  jump={jump}
+                  onSelect={choose}
+                />
+              : <p className="empty">{error ?? 'reading the repository...'}</p>}
+
+            <CommitPanel
+              repo={current}
+              hash={selected}
+              known={chosen}
+              mode={settings.panel}
+              onClose={() => setSelected(null)}
+            />
+          </div>
+        </div>
       </main>
     </>
   )

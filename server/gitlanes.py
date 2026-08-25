@@ -361,6 +361,23 @@ def branch_payload(repo):
 
 # --------------------------------------------------------- the list of repositories
 
+def app_version():
+    """The version, read where the only copy of it lives: the Rust manifest.
+
+    The Rust side answers the same string from its own compile, so neither can
+    drift from the other. The first `version` line of a manifest is the package
+    one; a dependency writes its own inside braces, never at the start of a line.
+    """
+    try:
+        with open(os.path.join(ROOT, "src-tauri", "Cargo.toml"), encoding="utf-8") as handle:
+            for line in handle:
+                if line.startswith("version"):
+                    return line.split("=", 1)[1].strip().strip('"')
+    except (OSError, IndexError):
+        pass
+    return ""
+
+
 def config_path():
     base = os.environ.get("APPDATA") or os.path.expanduser("~/.config")
     folder = os.path.join(base, "gitlanes")
@@ -496,6 +513,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({
                     "repos": [describe(p) for p in load_repos()],
                     "default": self.default_repo,
+                    "version": app_version(),
                 })
             elif url.path == "/api/discover":
                 root = query.get("root", [""])[0]
