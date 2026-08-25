@@ -3,3 +3,9 @@ __pycache__/
 
 node_modules/
 web/dist/
+
+src-tauri/target/
+src-tauri/gen/
+src-tauri/icons/*
+!src-tauri/icons/draw-icon.py
+!src-tauri/icons/source.png

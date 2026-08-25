@@ -1,0 +1,44 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "gitlanes",
+  "version": "0.1.0",
+  "identifier": "dev.gitlanes.app",
+  "build": {
+    "frontendDist": "../web/dist",
+    "beforeDevCommand": {
+      "script": "bun run build",
+      "cwd": "../web"
+    },
+    "beforeBuildCommand": {
+      "script": "bun run build",
+      "cwd": "../web"
+    }
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "gitlanes",
+        "width": 1360,
+        "height": 900,
+        "minWidth": 720,
+        "minHeight": 400
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+    },
+    "withGlobalTauri": true
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/icon.ico"
+    ]
+  }
+}

@@ -89,23 +89,50 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return payload as T
 }
 
+/**
+ * Two ways in, one shape out.
+ *
+ * Inside the desktop window the calls go straight to Rust, and there is no
+ * server at all. In a browser they go to the Python backend over HTTP. The
+ * answers are identical, so nothing above this file knows which one it got.
+ */
+type Invoke = (command: string, args?: Record<string, unknown>) => Promise<unknown>
+
+const desktop = (globalThis as { __TAURI__?: { core?: { invoke?: Invoke } } }).__TAURI__?.core?.invoke
+
+export const insideApp = Boolean(desktop)
+
 export const fetchGraph = (repo: string | null, scope: Scope, limit: number) =>
-  get<Graph>('/api/graph', { repo: repo ?? undefined, scope, limit })
+  desktop
+    ? (desktop('graph', { repo, scope, limit }) as Promise<Graph>)
+    : get<Graph>('/api/graph', { repo: repo ?? undefined, scope, limit })
 
 export const fetchFingerprint = (repo: string | null) =>
-  get<{ fingerprint: string }>('/api/fingerprint', { repo: repo ?? undefined })
+  desktop
+    ? (desktop('fingerprint', { repo }) as Promise<string>).then((fingerprint) => ({ fingerprint }))
+    : get<{ fingerprint: string }>('/api/fingerprint', { repo: repo ?? undefined })
 
 export const fetchCommit = (repo: string | null, hash: string) =>
-  get<CommitDetail>('/api/commit', { repo: repo ?? undefined, h: hash })
+  desktop
+    ? (desktop('commit_detail', { repo, hash }) as Promise<CommitDetail>)
+    : get<CommitDetail>('/api/commit', { repo: repo ?? undefined, h: hash })
 
 export const fetchRepos = () =>
-  get<{ repos: RepoEntry[]; default: string | null }>('/api/repos')
+  desktop
+    ? (desktop('repos') as Promise<{ repos: RepoEntry[]; default: string | null }>)
+    : get<{ repos: RepoEntry[]; default: string | null }>('/api/repos')
 
 export const discoverRepos = (root: string) =>
-  get<{ repos: RepoEntry[] }>('/api/discover', { root })
+  desktop
+    ? (desktop('discover', { root }) as Promise<RepoEntry[]>).then((repos) => ({ repos }))
+    : get<{ repos: RepoEntry[] }>('/api/discover', { root })
 
 export const openRepo = (path: string) =>
-  post<{ repo: RepoEntry }>('/api/repos/open', { path })
+  desktop
+    ? (desktop('open_repo', { path }) as Promise<RepoEntry>).then((repo) => ({ repo }))
+    : post<{ repo: RepoEntry }>('/api/repos/open', { path })
 
 export const closeRepo = (path: string) =>
-  post<{ repos: RepoEntry[] }>('/api/repos/close', { path })
+  desktop
+    ? (desktop('close_repo', { path }) as Promise<RepoEntry[]>).then((repos) => ({ repos }))
+    : post<{ repos: RepoEntry[] }>('/api/repos/close', { path })
