@@ -18,6 +18,25 @@ dates down the left margin, and branch and tag labels on the commits that carry 
 `git for-each-ref`, reads what they print, and holds no lock, so it is safe to leave open beside
 whatever else you are doing to the same folder.
 
+## Why
+
+Because reading a graph should not cost what an IDE costs. IntelliJ draws this graph better than
+anything else does, and opening it to read one for ten seconds means a project indexed and a Java
+daemon left running behind whatever you were actually doing. An editor that starts instantly, Zed
+among them, answers the other half of the question instead: it shows you the files, and the
+history is behind an extension when it is there at all. A forge answers it in a browser, a page
+away from the folder you are working in.
+
+So this is the graph and nothing else, and it takes from all three: the lanes and the labels are
+IntelliJ's, several things a forge puts on a branch page are here too, and what neither of them
+can be without is gone. No indexing, no language server, nothing left running afterwards. The
+window is a Rust process of some thirty megabytes drawing in the web view Windows already ships,
+what it costs beyond that is what that web view costs, and it opens about as fast as a folder
+does.
+
+You watch a repository rather than query it: the graph redraws as branches move, while you work
+in the folder it is reading.
+
 ## Quick start
 
 Windows: take `GitLanes_<version>_x64-setup.exe` from the
