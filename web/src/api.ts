@@ -58,9 +58,18 @@ export interface Branch {
   upstream: Upstream | null
 }
 
+/** A ref with nothing measured against it: a remote branch, or a tag. */
+export interface PlainRef {
+  name: string
+  head: string
+  t: string
+}
+
 export interface BranchList {
   base: string | null
   branches: Branch[]
+  remotes: PlainRef[]
+  tags: PlainRef[]
 }
 
 export interface RepoEntry {

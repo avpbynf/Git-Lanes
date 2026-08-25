@@ -17,10 +17,9 @@ It exists because reading where a branch stands should not cost opening an IDE.
 The page redraws on its own whenever a ref moves, and every ten seconds in any case. It pauses
 while its tab is hidden and catches up when you come back to it.
 
-Click a commit for its message and the files it touched. The panel that opens is resized by
-its left edge, and keeps that width. Escape closes it, then clears the filter. The repository
-name on the left opens the picker, which switches between the repositories already opened and
-scans a folder for new ones.
+Click a commit for its message and the files it touched. Escape closes the panel, then clears
+the filter, then the tree. The repository name on the left opens the picker, which switches
+between the repositories already opened and scans a folder for new ones.
 
 The row under the bar narrows the reading, and it does so in two different ways on purpose.
 The text field dims what does not match instead of hiding it, so the shape of the graph stays
@@ -29,15 +28,21 @@ it read it as a regular expression and tell upper case from lower. The three con
 are given to git, which does not return what it leaves out: the author, how far back to read,
 and the paths a commit must have touched.
 
-Next to it sits the branch HEAD is on. Its list holds every local branch: how far ahead and
-behind it stands from the base branch, named at the top of the list, and what the remote knows
-of it. A branch nobody has pushed says so, and so does one whose remote branch has since been
-deleted. Clicking one scrolls the graph to its tip and opens it.
+Next to it sits the branch HEAD is on, and clicking it opens the tree of refs. Local branches,
+remote ones and tags each have their section, and a name with slashes in it reads as the folders
+it already is: `feat/custom-images` files itself under `feat`. A local branch carries how far
+ahead and behind it stands from its base and whether it was ever pushed; hovering says the rest
+in full. Clicking any of them scrolls the graph to its tip and opens it.
+
+Both panels are dragged wider by their inner edge and pinned by the tack in their own header.
+Pinned, a panel holds its own room and the graph gives up the width; floating, it passes over
+the graph and costs nothing. Neither closes itself when you click elsewhere, which is what makes
+reading several commits in a row, or walking down a list of branches, bearable.
 
 The graph reads four hundred commits and reads four hundred more each time the scrolling
-reaches its end, so nothing has to be asked for in advance. The cog opens what is worth
-choosing: the theme, whether a branch clicked goes to its tip or bounds the graph to it
-instead, and whether the commit panel covers the graph or sits beside it for good.
+reaches its end, so nothing has to be asked for in advance. The burger at the far left opens
+what is worth choosing: the theme, and whether a branch clicked goes to its tip or bounds the
+graph to it instead.
 
 ## Building the front end
 

@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   fetchRepos, filtering, NO_FILTERS,
-  type Branch, type Filters, type Order, type RepoEntry,
+  type Filters, type Order, type RepoEntry,
 } from './api'
 import { ago } from './lanes'
 import { searching } from './search'
-import { ALL, branchOf, readScope } from './scope'
+import { ALL, branchOf, readScope, scopeOf } from './scope'
 import { readSettings, writeSettings, type Settings } from './settings'
 import { useGraph } from './useGraph'
-import { BranchMenu } from './components/BranchMenu'
 import { CommitPanel } from './components/CommitPanel'
 import { FilterBar } from './components/FilterBar'
 import { GraphView } from './components/GraphView'
+import { RefsPanel } from './components/RefsPanel'
 import { RepoPicker } from './components/RepoPicker'
 import { SettingsMenu } from './components/SettingsMenu'
 import { WindowControls } from './components/WindowControls'
@@ -19,6 +19,12 @@ import { dragProps } from './window'
 
 /** How many commits a read asks for, and how many the next one adds. */
 const PAGE = 400
+
+/** The ref the reading sits on: a branch names the bar, anything highlights the tree. */
+interface Taken {
+  name: string
+  local: boolean
+}
 
 export default function App() {
   const [repos, setRepos] = useState<RepoEntry[]>([])
@@ -35,7 +41,7 @@ export default function App() {
   const [matchCase, setMatchCase] = useState(() => localStorage.getItem('case') === 'yes')
   const [selected, setSelected] = useState<string | null>(null)
   const [jump, setJump] = useState<{ h: string; n: number } | null>(null)
-  const [picked, setPicked] = useState<string | null>(null)
+  const [taken, setTaken] = useState<Taken | null>(null)
   const [settings, setSettings] = useState<Settings>(readSettings)
   const search = useRef<HTMLInputElement>(null)
 
@@ -59,6 +65,23 @@ export default function App() {
   useEffect(() => { if (current) localStorage.setItem('repo', current) }, [current])
   useEffect(() => { document.title = graph ? `${graph.repo} . gitlanes` : 'gitlanes' }, [graph])
 
+  const change = useCallback((patch: Partial<Settings>) => {
+    setSettings((held) => {
+      const next = { ...held, ...patch }
+      writeSettings(next)
+      return next
+    })
+    // going back to one global view releases the branch that was bounding it, which
+    // otherwise stays with no control left to undo it
+    if (patch.branchClick === 'reveal') {
+      const held = branchOf(scope)
+      if (held) setTaken({ name: held, local: true })
+      setLimit(PAGE)
+      setScope(ALL)
+      localStorage.setItem('scope', ALL)
+    }
+  }, [scope])
+
   useEffect(() => {
     const keys = (event: KeyboardEvent) => {
       if (event.key === '/' && document.activeElement !== search.current) {
@@ -69,14 +92,15 @@ export default function App() {
       if (event.key !== 'Escape') return
       if (selected) setSelected(null)
       else if (query) setQuery('')
+      else if (settings.refsOpen) change({ refsOpen: false })
     }
     addEventListener('keydown', keys)
     return () => removeEventListener('keydown', keys)
-  }, [selected, query])
+  }, [selected, query, settings.refsOpen, change])
 
   const pick = (path: string) => {
     setSelected(null)
-    setPicked(null)
+    setTaken(null)
     setLimit(PAGE)
     setScope(ALL)
     localStorage.setItem('scope', ALL)
@@ -85,31 +109,36 @@ export default function App() {
     setCurrent(path)
   }
 
-  const bind = (next: string) => {
-    setLimit(PAGE)
-    setScope(next)
-    localStorage.setItem('scope', next)
+  const goTo = (hash: string) => {
+    setSelected(hash)
+    setJump((held) => ({ h: hash, n: (held?.n ?? 0) + 1 }))
   }
 
-  const reveal = (branch: Branch) => {
-    setPicked(branch.name)
-    setSelected(branch.head)
-    setJump((held) => ({ h: branch.head, n: (held?.n ?? 0) + 1 }))
+  /** A ref taken in the tree: bound to, when that is the mode and it is a branch. */
+  const take = (name: string, head: string, local: boolean) => {
+    setTaken({ name, local })
+    if (local && settings.branchClick === 'filter') {
+      setLimit(PAGE)
+      setScope(scopeOf(name))
+      localStorage.setItem('scope', scopeOf(name))
+      return
+    }
+    goTo(head)
   }
 
   /**
    * A commit picked in the graph, and the branch it ends if it ends one.
    *
    * Clicking the tip of a branch is the same gesture as clicking that branch in
-   * the list, so the bar answers it the same way. When several branches stand on
+   * the tree, so the bar answers it the same way. When several branches stand on
    * the commit, the one already named wins, then the one HEAD is on.
    */
   const choose = (hash: string) => {
     setSelected(hash)
     const commit = graph?.commits.find((one) => one.h === hash)
     const ends = commit?.refs.filter((ref) => ref.k === 'local').map((ref) => ref.n) ?? []
-    if (!ends.length || ends.includes(picked ?? '')) return
-    setPicked(ends.find((name) => name === graph?.branch) ?? ends[0])
+    if (!ends.length || ends.includes(taken?.name ?? '')) return
+    setTaken({ name: ends.find((name) => name === graph?.branch) ?? ends[0], local: true })
   }
 
   const narrow = (patch: Partial<Filters>) => {
@@ -127,23 +156,6 @@ export default function App() {
       localStorage.setItem('case', patch.matchCase ? 'yes' : 'no')
     }
   }
-
-  const change = useCallback((patch: Partial<Settings>) => {
-    setSettings((held) => {
-      const next = { ...held, ...patch }
-      writeSettings(next)
-      return next
-    })
-    // going back to one global view releases the branch that was bounding it, which
-    // otherwise stays with no control left to undo it
-    if (patch.branchClick === 'reveal') {
-      const held = branchOf(scope)
-      if (held) setPicked(held)
-      setLimit(PAGE)
-      setScope(ALL)
-      localStorage.setItem('scope', ALL)
-    }
-  }, [scope])
 
   /**
    * One more page, once the page being read has landed in full.
@@ -170,6 +182,11 @@ export default function App() {
 
   const found = useMemo(() => searching(query, regex, matchCase), [query, regex, matchCase])
 
+  const bound = branchOf(scope)
+  const head = graph?.branch ?? null
+  // the bar names a branch; a tag taken in the tree highlights there and stays there
+  const named = bound ?? (taken?.local ? taken.name : null) ?? head
+  const lit = bound ?? taken?.name ?? head
   const freshness = updatedAt ? `refresh, read ${ago(new Date(updatedAt))}` : 'refresh'
 
   return (
@@ -177,16 +194,13 @@ export default function App() {
       <header className="bar" {...dragProps}>
         <SettingsMenu settings={settings} onChange={change} />
         <RepoPicker repos={repos} current={current} onPick={pick} onChanged={refreshRepos} />
-        <BranchMenu
-          repo={current}
-          scope={scope}
-          click={settings.branchClick}
-          branch={graph?.branch ?? null}
-          dirty={graph?.dirty ?? false}
-          picked={picked}
-          onScope={bind}
-          onReveal={reveal}
-        />
+        <button className="pick" onClick={() => change({ refsOpen: !settings.refsOpen })}>
+          {/* the star is about the working tree, so it only follows the branch HEAD is on */}
+          <span className="strong">
+            {named ?? 'no branch'}{graph?.dirty && named === head ? ' *' : ''}
+          </span>
+          <span className="caret">{settings.refsOpen ? '^' : 'v'}</span>
+        </button>
         <span className="spacer" />
         {/* nothing to say while it works: only a failure is worth a line in the bar */}
         {error && <span className="status bad">{error}</span>}
@@ -215,6 +229,17 @@ export default function App() {
       />
 
       <main className="body">
+        <RefsPanel
+          repo={current}
+          open={settings.refsOpen}
+          pinned={settings.refsPinned}
+          active={lit}
+          fingerprint={graph?.fingerprint ?? ''}
+          onPin={(refsPinned) => change({ refsPinned })}
+          onClose={() => change({ refsOpen: false })}
+          onTake={take}
+        />
+
         {graph
           ? <GraphView
               graph={graph}
@@ -232,7 +257,8 @@ export default function App() {
           repo={current}
           hash={selected}
           known={chosen}
-          mode={settings.panel}
+          pinned={settings.panelPinned}
+          onPin={(panelPinned) => change({ panelPinned })}
           onClose={() => setSelected(null)}
         />
       </main>

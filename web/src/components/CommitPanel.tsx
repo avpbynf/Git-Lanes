@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type PointerEvent } from 'react'
+import { useEffect, useState } from 'react'
 import { fetchCommit, type Commit, type CommitDetail } from '../api'
-import type { PanelMode } from '../settings'
+import { usePanelWidth } from '../panel'
 
 const MIN_WIDTH = 320
 const WIDTH = 440
@@ -13,9 +13,16 @@ interface Props {
   hash: string | null
   /** What the graph already knows of the commit, so the panel answers the click at once. */
   known: Commit | null
-  mode: PanelMode
+  pinned: boolean
+  onPin: (pinned: boolean) => void
   onClose: () => void
 }
+
+const PIN = (
+  <svg viewBox="0 0 16 16" aria-hidden="true">
+    <path d="M4.4 4.2h7.2M5.9 4.2v5.2M10.1 4.2v5.2M3.8 9.4h8.4M8 9.4v4.4" />
+  </svg>
+)
 
 interface Answer {
   hash: string
@@ -23,16 +30,10 @@ interface Answer {
   error?: string
 }
 
-function heldWidth(): number {
-  const held = Number(localStorage.getItem('panel'))
-  return held >= MIN_WIDTH ? held : WIDTH
-}
-
-export function CommitPanel({ repo, hash, known, mode, onClose }: Props) {
+export function CommitPanel({ repo, hash, known, pinned, onPin, onClose }: Props) {
   const [answer, setAnswer] = useState<Answer | null>(null)
   const [slowFor, setSlowFor] = useState<string | null>(null)
-  const [width, setWidth] = useState(heldWidth)
-  const sizing = useRef(false)
+  const { width, grip } = usePanelWidth('panel', WIDTH, MIN_WIDTH, 'right')
 
   useEffect(() => {
     if (!hash) return
@@ -52,24 +53,6 @@ export function CommitPanel({ repo, hash, known, mode, onClose }: Props) {
     return () => clearTimeout(timer)
   }, [repo, hash])
 
-  // the pointer is captured, so the drag survives leaving the few pixels it started on
-  const grab = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0) return
-    event.currentTarget.setPointerCapture(event.pointerId)
-    sizing.current = true
-  }
-
-  const size = (event: PointerEvent<HTMLDivElement>) => {
-    if (sizing.current) setWidth(Math.max(MIN_WIDTH, Math.round(innerWidth - event.clientX)))
-  }
-
-  const settle = (event: PointerEvent<HTMLDivElement>) => {
-    if (!sizing.current) return
-    sizing.current = false
-    event.currentTarget.releasePointerCapture(event.pointerId)
-    localStorage.setItem('panel', String(width))
-  }
-
   /**
    * The commit last read in full stays until the next one is read in full.
    *
@@ -86,15 +69,24 @@ export function CommitPanel({ repo, hash, known, mode, onClose }: Props) {
   const title = held ? (detail ? first : undefined) : known?.s
   const waiting = Boolean(hash) && held?.hash !== hash && slowFor === hash
 
-  const className = ['panel', mode, hash ? 'open' : ''].filter(Boolean).join(' ')
+  const className = ['panel', pinned ? 'pinned' : 'over', hash ? 'open' : '']
+    .filter(Boolean)
+    .join(' ')
 
   return (
     <aside className={className} style={{ width }}>
-      <div className="grip" onPointerDown={grab} onPointerMove={size} onPointerUp={settle} />
+      <div className="grip" {...grip} />
       <header>
         <span className="strong">commit</span>
         <span className="spacer" />
-        {mode === 'over' && <button onClick={onClose}>close</button>}
+        <button
+          className={pinned ? 'icon pin on' : 'icon pin'}
+          title={pinned ? 'let it float over the graph' : 'hold its own room'}
+          onClick={() => onPin(!pinned)}
+        >
+          {PIN}
+        </button>
+        <button onClick={onClose}>close</button>
       </header>
       <div className={waiting ? 'panel-body waiting' : 'panel-body'}>
         {!hash && <p className="empty">pick a commit in the graph</p>}

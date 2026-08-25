@@ -1,15 +1,16 @@
 import type { Theme } from './lanes'
 
-/** What a click on a branch does: bound the graph to it, or go to its tip. */
-export type BranchClick = 'filter' | 'reveal'
-
-/** Where the commit panel lives: over the graph, or beside it for good. */
-export type PanelMode = 'over' | 'beside'
+/** What a click on a ref does: go to its tip, or bound the graph to it. */
+export type BranchClick = 'reveal' | 'filter'
 
 export interface Settings {
   theme: Theme
   branchClick: BranchClick
-  panel: PanelMode
+  /** The refs panel: whether it is showing, and whether it holds its own room. */
+  refsOpen: boolean
+  refsPinned: boolean
+  /** The commit panel only holds its own room; a commit is what opens it. */
+  panelPinned: boolean
 }
 
 const KEY = 'settings'
@@ -17,7 +18,9 @@ const KEY = 'settings'
 const FALLBACK: Settings = {
   theme: matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark',
   branchClick: 'reveal',
-  panel: 'over',
+  refsOpen: false,
+  refsPinned: false,
+  panelPinned: false,
 }
 
 /** A key the stored shape never had falls back, so an old blob never breaks a boot. */
