@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { Commit, Graph } from '../api'
 import {
   DOT, ROW, ago, colorOf, dayLabel, edgePath, edgeSpan, graphWidth, laneX, rowY, tint, type Theme,
@@ -92,6 +92,25 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
   const windowHeight = Math.max((last - first) * ROW, 0)
   const width = graphWidth(graph.lanes)
 
+  /**
+   * How wide the two columns on the right have to be, and no wider.
+   *
+   * They cannot be sized by the browser: every row is a grid of its own, so an
+   * automatic width would land differently on each and the columns would not
+   * line up. Measured over what is loaded, once, they line up and a repository
+   * of short names gives the room back to the subject.
+   */
+  const widths = useMemo(() => {
+    let who = 6
+    let when = 4
+    for (const commit of graph.commits) {
+      if (commit.an.length > who) who = commit.an.length
+      const stamp = ago(new Date(commit.t)).length
+      if (stamp > when) when = stamp
+    }
+    return { who: Math.min(who, 24), when: Math.min(when, 16) }
+  }, [graph])
+
   const visible = graph.commits.slice(first, last)
   const wires = graph.edges.filter((edge) => {
     const [from, to] = edgeSpan(edge)
@@ -112,7 +131,15 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
 
   return (
     <div className="scroller" ref={scroller} onScroll={onScroll}>
-      <div className="canvas" style={{ height: count * ROW, '--gw': `${width}px` } as CSSProperties}>
+      <div
+        className="canvas"
+        style={{
+          height: count * ROW,
+          '--gw': `${width}px`,
+          '--who': `${widths.who}ch`,
+          '--when': `${widths.when}ch`,
+        } as CSSProperties}
+      >
         <svg
           className="wires"
           width={width}
@@ -177,6 +204,8 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
             const label = dayLabel(when)
             const previous = graph.commits[first + index - 1]
             const newDay = !previous || dayLabel(new Date(previous.t)) !== label
+            // HEAD wears its halo on the dot, so a label saying so would say it twice
+            const carried = commit.refs.filter((ref) => ref.k !== 'head')
             // the topmost row has the bar above it, and a rule there reads as a thick border
             const className = [
               'row',
@@ -188,13 +217,15 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
               <div key={commit.h} className={className} onClick={() => onSelect(commit.h)}>
                 <div className="gut">{newDay ? label : ''}</div>
                 <div />
-                <div className="msg">{commit.s}</div>
-                <div className="refs">
-                  {commit.refs
-                    .filter((ref) => ref.k !== 'head')
-                    .map((ref) => (
-                      <span key={ref.k + ref.n} className={`ref ${ref.k}`}>{ref.n}</span>
-                    ))}
+                <div className="msg">
+                  <span className="subject">{commit.s}</span>
+                  {carried.length > 0 && (
+                    <span className="refs">
+                      {carried.map((ref) => (
+                        <span key={ref.k + ref.n} className={`ref ${ref.k}`}>{ref.n}</span>
+                      ))}
+                    </span>
+                  )}
                 </div>
                 <div className="who">
                   <span className="ava" style={{ background: tint(commit.an) }}>

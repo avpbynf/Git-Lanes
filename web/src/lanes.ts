@@ -4,7 +4,6 @@ export const ROW = 28
 export const LANE = 16
 export const PADX = 12
 export const DOT = 3.6
-export const GUTTER = 78
 
 const PALETTES = {
   dark: ['#e8846c', '#5c9dff', '#4fc08d', '#d8b24a', '#b47ce6', '#3fbfd0', '#e37fb4', '#8fbf3f', '#e09a4e', '#7f8ff0'],
@@ -64,20 +63,26 @@ export function edgePath(fromRow: number, fromLane: number, routeLane: number, t
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-const pad = (n: number) => String(n).padStart(2, '0')
 
 export function dayLabel(date: Date): string {
   const sameYear = date.getFullYear() === new Date().getFullYear()
   return `${date.getDate()} ${MONTHS[date.getMonth()]}${sameYear ? '' : ' ' + String(date.getFullYear()).slice(2)}`
 }
 
+/**
+ * How long ago, in as few characters as it takes.
+ *
+ * Past a week the clock time goes: nobody scans a column of minutes from last
+ * March, and the row carries the whole date in its tooltip anyway. The column
+ * is as wide as its widest answer, so every character here costs one there.
+ */
 export function ago(date: Date, now = Date.now()): string {
   const seconds = (now - date.getTime()) / 1000
   if (seconds < 60) return 'just now'
   if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`
   if (seconds < 86400) return `${Math.floor(seconds / 3600)} h ago`
   if (seconds < 6 * 86400) return `${Math.floor(seconds / 86400)} d ago`
-  return `${dayLabel(date)} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+  return dayLabel(date)
 }
 
 /** A stable colour for an author, so the initials read as the same person. */

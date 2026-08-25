@@ -3,7 +3,8 @@
      a dark page keeps the light scrollbar of the default scheme */
   color-scheme: dark;
   --row: 28px;
-  --gutter: 78px;
+  /* the day label and nothing else, so it is as wide as `25 Aug 24` and no wider */
+  --gutter: 64px;
   --bg: #1b1d22;
   --bg-alt: #212429;
   --panel: #23262c;
@@ -334,9 +335,16 @@ button:disabled { cursor: default; color: var(--faint); }
 
 .rows { position: relative; z-index: 1; }
 
+/* the two columns on the right are measured on their content, in ch plus the
+   room the avatar and the padding take; the subject keeps whatever is left */
 .row {
   display: grid;
-  grid-template-columns: var(--gutter) var(--gw, 90px) minmax(180px, 1fr) minmax(0, auto) 150px 118px;
+  grid-template-columns:
+    var(--gutter)
+    var(--gw, 90px)
+    minmax(0, 1fr)
+    calc(var(--who, 14ch) + 32px)
+    calc(var(--when, 12ch) + 18px);
   height: var(--row);
   align-items: center;
   white-space: nowrap;
@@ -348,7 +356,19 @@ button:disabled { cursor: default; color: var(--faint); }
 .row.day { box-shadow: inset 0 1px 0 var(--line); }
 
 .gut { color: var(--faint); font-size: 11px; padding-left: 10px; }
-.msg { overflow: hidden; text-overflow: ellipsis; padding-right: 12px; }
+
+/* the subject and the refs share one column, so it stays the same width on
+   every row: a track measured on refs most rows do not carry would not */
+.msg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  padding-right: 12px;
+}
+
+.subject { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 .who,
 .when {
@@ -375,14 +395,14 @@ button:disabled { cursor: default; color: var(--faint); }
 
 /* the refs stand against the author rather than in front of the message, which
    used to push every subject a different distance from the left */
+/* the refs keep their room and the subject gives way, since a label is what
+   tells two commits of the same afternoon apart. Never past half the column */
 .refs {
   display: flex;
-  justify-self: end;
+  flex: none;
   gap: 5px;
-  min-width: 0;
-  max-width: 280px;
+  max-width: 55%;
   overflow: hidden;
-  padding-right: 10px;
 }
 
 .ref {
