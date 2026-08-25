@@ -99,9 +99,11 @@ button:disabled { cursor: default; color: var(--faint); }
 
 .bar input[type='search'] { width: 210px; }
 
-/* the strip you grab to move the window: empty, and full height or there is
-   nothing to grab in a row that centres its items */
-.bar .spacer { align-self: stretch; }
+/* the whole bar moves the window, so its own room must survive a crowd:
+   the path gives up its width before anything overflows, and the gap keeps
+   a grabbable minimum */
+.bar .spacer { align-self: stretch; min-width: 48px; }
+.bar .path { flex: 0 1 auto; min-width: 0; }
 
 /* the three window buttons, flush to the corner like every other window */
 

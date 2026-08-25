@@ -75,11 +75,11 @@ export default function App() {
 
   return (
     <>
-      <header className="bar">
+      <header className="bar" {...dragProps}>
         <RepoPicker repos={repos} current={current} onPick={pick} onChanged={refreshRepos} />
         <BranchDivergence repo={current} />
-        <span className="path" {...dragProps}>{graph?.path}</span>
-        <span className="spacer" {...dragProps} />
+        <span className="path">{graph?.path}</span>
+        <span className="spacer" />
         <input
           ref={search}
           type="search"
