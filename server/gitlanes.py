@@ -25,6 +25,7 @@ ROOT = os.path.dirname(HERE)
 DIST = os.path.join(ROOT, "web", "dist")
 FIELD = "\x1f"
 RECORD = "\x1e"
+BRANCH = "branch:"      # what the front end prefixes a scope with to name one branch
 
 
 # --------------------------------------------------------------------------- git
@@ -87,6 +88,9 @@ def read_commits(repo, scope, limit):
     if scope == "all":
         # not --all: that one drags in refs/stash and the note refs
         args += ["--branches", "--tags", "--remotes", "HEAD"]
+    elif scope.startswith(BRANCH):
+        # spelled in full: a branch called -f stays a branch and never an option
+        args.append("refs/heads/" + scope[len(BRANCH):])
     if limit:
         args += ["-n", str(limit)]
     remotes = remote_names(repo)
