@@ -18,8 +18,8 @@ The page redraws on its own whenever a ref moves, and only then. What it watches
 fingerprint of the refs, of HEAD and of the working tree, asked for every two and a half seconds.
 It pauses while its tab is hidden and catches up when you come back to it.
 
-Click a commit for its message and the files it touched. Escape clears the commit, then the
-filter.
+Click a commit for its message and the files it touched, or walk from one to the next with the
+arrows, which open each one the same way. Escape clears the commit, then the filter.
 
 The row under the bar narrows the reading, and it does so in two different ways on purpose.
 The text field dims what does not match instead of hiding it, so the shape of the graph stays
