@@ -70,14 +70,21 @@ export function CommitPanel({ repo, hash, known, mode, onClose }: Props) {
     localStorage.setItem('panel', String(width))
   }
 
-  // the answer carries its own hash, so a stale one never shows under a new commit
-  const shown = answer?.hash === hash ? answer : null
-  const detail = shown?.detail
+  /**
+   * The commit last read in full stays until the next one is read in full.
+   *
+   * A body that empties and fills again is what the eye reads as a flicker, and
+   * a local read is quick enough that the swap looks like one move. Held past a
+   * quarter of a second it fades, so nothing pretends to answer for a commit it
+   * was not read for.
+   */
+  const held = hash ? answer : null
+  const detail = held?.detail
   const [first, ...rest] = (detail?.body ?? '').split('\n')
   const body = rest.join('\n').trim()
-  // the subject is already on screen in the row that was clicked, so it lands with the click
-  const title = detail ? first : known?.s
-  const waiting = Boolean(hash) && !shown && slowFor === hash
+  // nothing to hold on the first open, so the row that was clicked lends its subject
+  const title = held ? (detail ? first : undefined) : known?.s
+  const waiting = Boolean(hash) && held?.hash !== hash && slowFor === hash
 
   const className = ['panel', mode, hash ? 'open' : ''].filter(Boolean).join(' ')
 
@@ -89,11 +96,11 @@ export function CommitPanel({ repo, hash, known, mode, onClose }: Props) {
         <span className="spacer" />
         {mode === 'over' && <button onClick={onClose}>close</button>}
       </header>
-      <div className="panel-body">
+      <div className={waiting ? 'panel-body waiting' : 'panel-body'}>
         {!hash && <p className="empty">pick a commit in the graph</p>}
-        {hash && shown?.error && <p className="empty">{shown.error}</p>}
+        {held?.error && <p className="empty">{held.error}</p>}
         {title && <h2>{title}</h2>}
-        {waiting && <p className="empty">reading...</p>}
+        {waiting && !held && <p className="empty">reading...</p>}
         {detail && (
           <>
             <p className="meta">

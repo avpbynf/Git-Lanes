@@ -416,6 +416,9 @@ button:disabled { cursor: default; color: var(--faint); }
   padding: 12px;
   scrollbar-color: var(--line) transparent;
 }
+
+/* held from the commit before, and past a quarter of a second it says so */
+.panel-body.waiting { opacity: 0.45; }
 .panel h2 { font-size: 14px; margin: 0 0 8px; font-weight: 600; }
 
 .panel pre {
