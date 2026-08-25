@@ -1,0 +1,194 @@
+# A tag is the only thing here that publishes anything, and what it publishes is what this history
+# builds rather than what a machine happened to have in target/release.
+#
+# The version lives in one place, the version line of src-tauri/Cargo.toml: Rust reads it at
+# compile time, the Python backend parses that same file, and tauri.conf.json carries no copy of
+# it, so the installer is named after the number the program prints. A tag repeats it because a
+# human types it, and this run compares the two and stops before anything is uploaded when they
+# disagree. That is the one mistake that would otherwise ship an installer under a version number
+# nothing inside it agrees with.
+#
+# What ships is the installer, found rather than named: its file name is built out of productName
+# and the version, and spelling it here would be a second home for both.
+
+name: release
+
+on:
+  push:
+    tags:
+      # A digit after the v, so a marker tag beginning with that letter is refused here rather than
+      # by the check below, which would have queued a runner and checked the tree out first.
+      - "v[0-9]*"
+  # For a release already out. The body is read back off the release, so a body edited by hand
+  # after the tag went out is what a second run builds against.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag of a release already out, to build and send again
+        required: true
+
+# Creating a release and attaching a file to it is a write, and it is the only one asked for.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    # bash, and not the PowerShell a Windows runner defaults to. A step of several commands is
+    # reported on its last one there, so a check that failed ahead of a command that passed would
+    # go by as a green run.
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Settle which tag is being released
+        id: which
+        env:
+          DISPATCHED: ${{ inputs.tag }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            tag="$DISPATCHED"
+          fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.which.outputs.tag }}
+
+      # Read out of the manifest rather than asked of cargo, so a tag that disagrees fails in
+      # seconds rather than after the window has been compiled.
+      - name: Check the tag against the version
+        id: version
+        env:
+          TAG: ${{ steps.which.outputs.tag }}
+        run: |
+          # The first version line of the manifest is the package's own: a dependency spells its
+          # version inside braces, after the crate name, never at the start of a line. It is the
+          # rule the Python backend reads that file by, and the two answer alike on purpose.
+          version="$(sed -n 's/^version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' \
+            src-tauri/Cargo.toml | head -1)"
+          tagged="${TAG#v}"
+
+          # Told apart from a mismatch on purpose: an empty answer means the line was renamed,
+          # moved or commented out, and reporting that as a bad tag sends whoever reads it to the
+          # wrong file.
+          if [ -z "$version" ]; then
+            echo "::error::src-tauri/Cargo.toml has no version line"
+            exit 1
+          fi
+
+          if [ "$tagged" != "$version" ]; then
+            echo "::error::tag $TAG names $tagged and src-tauri/Cargo.toml names $version"
+            exit 1
+          fi
+
+          # Three numbers, then either -alpha, or -beta, or nothing, which is the shape
+          # CONTRIBUTING describes. Asked of a tag push alone: a release already out was named
+          # under whatever rule stood on its day, and this job is dispatched again on old tags.
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta))?$'; then
+              echo "::error::$version is not three numbers followed by -alpha, -beta or nothing"
+              exit 1
+            fi
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          # What marks a release as a pre-release is the version itself: an identifier after a
+          # dash is what 0.2.0-beta has and what a finished version does not.
+          case "$version" in
+            *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      # Ahead of the build, and for the reason the tag check is ahead of it: a version nobody wrote
+      # an entry for is worth reporting in seconds. It is also the only thing standing between a
+      # release and an empty body, since what the release carries is read out of this file.
+      - name: Take this version's changelog entry
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # Everything under this version's heading, up to the next one. sed drops the blank line
+          # the heading is followed by, which is punctuation of the file rather than content.
+          awk -v heading="## $VERSION" '
+            $0 == heading { inside = 1; next }
+            inside && /^## / { exit }
+            inside { print }
+          ' CHANGELOG.md | sed '/./,$!d' > changelog.md
+
+          if [ ! -s changelog.md ]; then
+            echo "::error::CHANGELOG.md carries no entry under '## $VERSION'"
+            exit 1
+          fi
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Cache what cargo downloads and what it builds
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            src-tauri/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-
+
+      - uses: ./.github/actions/tauri-cli
+
+      # The page is built by the bundler itself, through beforeBuildCommand, so only what that
+      # command needs is set up here. The icons are not: they are derived from source.png, which
+      # is the copy the repository keeps.
+      - name: What the bundle is built out of
+        run: |
+          (cd web && bun install --frozen-lockfile)
+          cargo tauri icon src-tauri/icons/source.png
+
+      - run: cargo tauri build
+
+      # Counted rather than named. The name is productName and the version, so a rename in
+      # tauri.conf.json would leave a pattern here quietly matching nothing; and the directory is
+      # listed on failure, because "found 0" beside a folder that visibly holds an installer sends
+      # whoever reads it looking for a build that did not happen.
+      - name: Find the installer
+        id: installer
+        run: |
+          shopt -s nullglob
+          bundles=(src-tauri/target/release/bundle/nsis/*-setup.exe)
+
+          if [ ${#bundles[@]} -ne 1 ]; then
+            echo "::error::the nsis bundle matched ${#bundles[@]} installers, and that folder holds: $(ls src-tauri/target/release/bundle/nsis 2>&1)"
+            exit 1
+          fi
+
+          echo "path=${bundles[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish on GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
+          TAG: ${{ steps.which.outputs.tag }}
+          INSTALLER: ${{ steps.installer.outputs.path }}
+        run: |
+          # Creating refuses a tag that already carries a release, so a re-run of a job that died
+          # after the release was made would have no way back other than deleting a public
+          # release. Uploading over it is that way back, and the edit finishes what a dead run
+          # left half done: creating with an asset makes the release a draft and publishes it only
+          # once the upload lands, so without that line a re-run would end green on a release
+          # nobody can see.
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" "$INSTALLER" --clobber
+            gh release edit "$TAG" --draft=false
+          else
+            # The body is this version's changelog entry rather than the API's generated list of
+            # merged pull requests: the history here is linear and pushed, so that list is a bare
+            # compare link under a heading, and a body written by hand is why the file is kept.
+            gh release create "$TAG" "$INSTALLER" \
+              --title "$TAG" \
+              --notes-file changelog.md \
+              --prerelease="$PRERELEASE"
+          fi
