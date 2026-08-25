@@ -122,8 +122,8 @@ async fn discover(root: String) -> Result<Vec<RepoEntry>, String> {
 }
 
 #[tauri::command]
-async fn graph(repo: Option<String>, scope: String, limit: usize) -> Result<Graph, String> {
-    off_thread(move || git::graph(&which_repo(repo)?, &scope, limit)).await
+async fn graph(repo: Option<String>, scope: String, limit: usize, order: String) -> Result<Graph, String> {
+    off_thread(move || git::graph(&which_repo(repo)?, &scope, limit, &order)).await
 }
 
 #[tauri::command]

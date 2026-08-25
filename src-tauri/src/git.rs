@@ -203,7 +203,7 @@ struct Raw {
     refs: Vec<GitRef>,
 }
 
-fn read_commits(repo: &str, scope: &str, limit: usize) -> Result<Vec<Raw>, String> {
+fn read_commits(repo: &str, scope: &str, limit: usize, order: &str) -> Result<Vec<Raw>, String> {
     let format = format!(
         "--pretty=format:%H{f}%P{f}%an{f}%aI{f}%D{f}%s{r}",
         f = FIELD,
@@ -211,7 +211,8 @@ fn read_commits(repo: &str, scope: &str, limit: usize) -> Result<Vec<Raw>, Strin
     );
     let limit_arg = limit.to_string();
     let branch_ref = scope.strip_prefix(BRANCH).map(|name| format!("refs/heads/{name}"));
-    let mut args = vec!["log", "--date-order", format.as_str()];
+    let sort = if order == "topo" { "--topo-order" } else { "--date-order" };
+    let mut args = vec!["log", sort, format.as_str()];
     if scope == "all" {
         // not --all: that one drags in refs/stash and the note refs
         args.extend_from_slice(&["--branches", "--tags", "--remotes", "HEAD"]);
@@ -411,8 +412,8 @@ fn is_empty(repo: &str) -> bool {
     git_soft(repo, &["for-each-ref", "--count=1", "--format=%(objectname)"]).trim().is_empty()
 }
 
-pub fn graph(repo: &str, scope: &str, limit: usize) -> Result<Graph, String> {
-    let raw = if is_empty(repo) { Vec::new() } else { read_commits(repo, scope, limit)? };
+pub fn graph(repo: &str, scope: &str, limit: usize, order: &str) -> Result<Graph, String> {
+    let raw = if is_empty(repo) { Vec::new() } else { read_commits(repo, scope, limit, order)? };
     let (commits, edges, lanes) = build_graph(raw);
     let (branch, dirty) = head_of(repo)?;
     Ok(Graph {
