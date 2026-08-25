@@ -100,6 +100,133 @@ def shallow_of(repo):
         return set()
 
 
+# The names a branch is measured against. Anything else is a topic branch, and a topic branch is
+# what can be finished with rather than what work is aimed at.
+TRUNKS = ("dev", "main", "master", "trunk")
+# How far back a replay is looked for on the trunk side. What normally bounds it is where the
+# oldest branch left the trunk, tens of commits; this is for the branch abandoned a year ago,
+# whose diffs would otherwise be seconds of work.
+CHERRY_CAP = 1000
+# Commits per pipeline. Both pipes stay under what the system buffers, so nothing has to be read
+# while something else is still being written.
+CHERRY_BATCH = 400
+
+# repo -> (the refs it was read from, the answer). What a replay costs is diffs, and the answer
+# only moves when a ref does, so a working tree being typed in does not pay for it again.
+_in_trunk = {}
+
+
+def patch_ids(repo, revs):
+    """Every commit named, filed under the patch it carries.
+
+    The diffs never come back into this process: diff-tree writes them straight into patch-id,
+    which answers one short line per commit. Reading them here would be megabytes of text in no
+    encoding in particular, a diff carrying whatever the files carry.
+    """
+    filed = {}
+    for start in range(0, len(revs), CHERRY_BATCH):
+        batch = revs[start:start + CHERRY_BATCH]
+        diffs = subprocess.Popen(["git", "-C", repo, "diff-tree", "--stdin", "-p"],
+                                 stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        ids = subprocess.Popen(["git", "-C", repo, "patch-id", "--stable"],
+                               stdin=diffs.stdout, stdout=subprocess.PIPE)
+        # this process keeps no handle on the diffs, or patch-id would wait on a pipe that
+        # nothing is left to close
+        diffs.stdout.close()
+        diffs.stdin.write(("\n".join(batch) + "\n").encode("utf-8"))
+        diffs.stdin.close()
+        answer = ids.communicate()[0].decode("utf-8", "replace")
+        diffs.wait()
+        for line in answer.splitlines():
+            parts = line.split()
+            if len(parts) >= 2:
+                filed.setdefault(parts[0], []).append(parts[1])
+    return filed
+
+
+def already_in_trunk(repo):
+    """Which branches a trunk already holds, and the hash it holds each of their commits under.
+
+    A branch is in a trunk in one of two ways. The trunk holds its very commits, which is what a
+    fast-forward leaves, and git says so. Or the trunk holds the same changes under other hashes,
+    which is what a rebase and a cherry-pick leave, and about that git says nothing at all: the
+    branch reads as work still waiting, forever, and the commits read as two pieces of work when
+    they are one done twice.
+
+    Both answers are the same question asked of the patch rather than of the hash.
+    """
+    rows = [line.split() for line in
+            git(repo, "for-each-ref", "--format=%(refname:short) %(objectname)",
+                "refs/heads").splitlines() if line.strip()]
+    key = tuple(tuple(row) for row in rows)
+    held = _in_trunk.get(repo)
+    if held and held[0] == key:
+        return held[1]
+
+    answer = (set(), {})
+    tips = {row[0]: row[1] for row in rows if len(row) == 2}
+    trunks = [name for name in tips if name in TRUNKS]
+    topics = [name for name in tips if name not in TRUNKS]
+    if trunks and topics:
+        answer = read_in_trunk(repo, tips, trunks, topics)
+    _in_trunk[repo] = (key, answer)
+    return answer
+
+
+def read_in_trunk(repo, tips, trunks, topics):
+    trunk_tips = [tips[name] for name in trunks]
+    topic_tips = [tips[name] for name in topics]
+
+    # every commit the topic branches hold and no trunk does, with its parents, so which branch
+    # each one belongs to is walked here rather than asked of git one branch at a time
+    own = {}
+    for line in git(repo, "rev-list", "--parents", *topic_tips, "--not", *trunk_tips).splitlines():
+        parts = line.split()
+        if parts:
+            own[parts[0]] = parts[1:]
+    if not own:
+        return set(topics), {}
+
+    # Where the oldest of those branches left the trunk, which is as far back as a replay of
+    # theirs can sit. Asking for the trunk --not the branches answers nothing at all for a branch
+    # that is merely ahead of the trunk, the whole trunk being reachable from it.
+    base = git_soft(repo, "merge-base", "--octopus", *trunk_tips, *topic_tips).split()
+    span = (["--not"] + base) if base else ["-n", str(CHERRY_CAP)]
+    theirs = git(repo, "rev-list", "--no-merges", *trunk_tips, *span).split()[:CHERRY_CAP]
+    # a merge commit carries no patch of its own, and a replay drops it, so it is never asked for
+    mine = [h for h, parents in own.items() if len(parents) < 2]
+
+    twins = {}
+    if theirs and mine:
+        on_trunk = set(theirs)
+        for group in patch_ids(repo, theirs + mine).values():
+            here = [h for h in group if h in on_trunk]
+            if not here:
+                continue
+            for one in group:
+                if one not in on_trunk:
+                    twins[one] = here[0]
+                    twins[here[0]] = one
+
+    merged = set()
+    for name in topics:
+        tip = tips[name]
+        if tip not in own:
+            merged.add(name)            # the trunk holds this branch under its own hashes
+            continue
+        walked, front = set(), [tip]
+        while front:
+            here = front.pop()
+            if here in walked or here not in own:
+                continue
+            walked.add(here)
+            front.extend(own[here])
+        if all(twins.get(h) for h in walked if len(own[h]) < 2):
+            merged.add(name)
+
+    return merged, twins
+
+
 def read_commits(repo, scope, limit, order, author="", since="", paths=""):
     fmt = FIELD.join(["%H", "%P", "%an", "%aI", "%D", "%s"]) + RECORD
     args = ["log", "--topo-order" if order == "topo" else "--date-order",
@@ -238,6 +365,14 @@ def graph_payload(repo, scope, limit, order, author="", since="", paths=""):
                                                      author, since, paths)
     edges, lane_count = build_graph(commits)
     branch, dirty = head_of(repo)
+    merged, twins = already_in_trunk(repo)
+    for commit in commits:
+        twin = twins.get(commit["h"])
+        if twin:
+            commit["tw"] = twin
+        for ref in commit["refs"]:
+            if ref["k"] == "local" and ref["n"] in merged:
+                ref["m"] = True
     return {
         "repo": os.path.basename(repo) or repo,
         "path": repo,
