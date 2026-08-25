@@ -343,8 +343,8 @@ button:disabled { cursor: default; color: var(--faint); }
     var(--gutter)
     var(--gw, 90px)
     minmax(0, 1fr)
-    calc(var(--who, 14ch) + 32px)
-    calc(var(--when, 12ch) + 18px);
+    calc(var(--who, 90px) + 32px)
+    calc(var(--when, 70px) + 18px);
   height: var(--row);
   align-items: center;
   white-space: nowrap;

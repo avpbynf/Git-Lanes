@@ -6,6 +6,27 @@ import {
 
 const OVERSCAN = 10
 
+/** What the two columns on the right are written in, so a width measured is a width drawn. */
+const RULER = '11px "Segoe UI", system-ui, sans-serif'
+
+const ruler = document.createElement('canvas').getContext('2d')
+
+/**
+ * How wide a column has to be to hold what it holds.
+ *
+ * Not the widest value but the width that share of them fit in: one long name
+ * among four hundred would otherwise leave a hole on every other row, and the
+ * few cut short keep their whole text in the tooltip. Measured rather than
+ * counted in characters, since `ch` answers for the digit zero of whatever
+ * font the element inherits, which is not the font the column is drawn in.
+ */
+function roomFor(values: string[], share: number): number {
+  if (!ruler || !values.length) return 0
+  ruler.font = RULER
+  const widths = values.map((value) => ruler.measureText(value).width).sort((a, b) => a - b)
+  return Math.ceil(widths[Math.min(widths.length - 1, Math.floor(widths.length * share))])
+}
+
 /**
  * How close to the end the eye must get before the graph asks for more.
  *
@@ -98,18 +119,16 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
    * They cannot be sized by the browser: every row is a grid of its own, so an
    * automatic width would land differently on each and the columns would not
    * line up. Measured over what is loaded, once, they line up and a repository
-   * of short names gives the room back to the subject.
+   * of short names gives the room back to the subject. A date is never cut, a
+   * name may be.
    */
-  const widths = useMemo(() => {
-    let who = 6
-    let when = 4
-    for (const commit of graph.commits) {
-      if (commit.an.length > who) who = commit.an.length
-      const stamp = ago(new Date(commit.t)).length
-      if (stamp > when) when = stamp
-    }
-    return { who: Math.min(who, 24), when: Math.min(when, 16) }
-  }, [graph])
+  const widths = useMemo(
+    () => ({
+      who: roomFor(graph.commits.map((commit) => commit.an), 0.95),
+      when: roomFor(graph.commits.map((commit) => ago(new Date(commit.t))), 1),
+    }),
+    [graph],
+  )
 
   const visible = graph.commits.slice(first, last)
   const wires = graph.edges.filter((edge) => {
@@ -136,8 +155,8 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
         style={{
           height: count * ROW,
           '--gw': `${width}px`,
-          '--who': `${widths.who}ch`,
-          '--when': `${widths.when}ch`,
+          '--who': `${widths.who}px`,
+          '--when': `${widths.when}px`,
         } as CSSProperties}
       >
         <svg
@@ -227,7 +246,7 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
                     </span>
                   )}
                 </div>
-                <div className="who">
+                <div className="who" title={commit.an}>
                   <span className="ava" style={{ background: tint(commit.an) }}>
                     {commit.an.slice(0, 1).toUpperCase()}
                   </span>
