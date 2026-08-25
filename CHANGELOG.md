@@ -12,6 +12,12 @@ the next one holds.
 
 ## Unreleased
 
+- **What is not committed yet has a row of its own**, above the commit it was started from, drawn
+  with a dashed dot and a dashed line down to it because it is not history yet. It says how many
+  files are staged, changed and untracked, and when they were last touched; clicking it lists
+  them, as clicking a commit lists its files. Every worktree of the repository gets one on its own
+  branch, so the work left half done in a folder nobody has open any more is visible from here.
+
 - **A branch a trunk already holds says so.** A branch whose commits are all in `dev` or `main`
   carries a `merged` tag beside its name on its last commit, whether the trunk holds those very
   commits or the same changes replayed under other hashes by a rebase or a cherry-pick. Git says
