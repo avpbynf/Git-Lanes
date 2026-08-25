@@ -9,6 +9,7 @@ named in the query, so the page can switch without a restart.
 from __future__ import annotations
 
 import argparse
+import datetime
 import hashlib
 import json
 import mimetypes
@@ -16,6 +17,7 @@ import os
 import subprocess
 import sys
 import threading
+import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
@@ -340,6 +342,12 @@ def build_graph(commits):
 
 
 def fingerprint(repo):
+    """What moves when the repository does, cheaply enough to be asked every couple of seconds.
+
+    The working trees of the other worktrees are not in it, on purpose: a status run in each of
+    them on every tick is exactly the cost this question exists to avoid. Their rows therefore
+    catch up whenever anything else moves, rather than the moment they change.
+    """
     refs = git(repo, "for-each-ref", "--format=%(objectname) %(refname)")
     head = git_soft(repo, "rev-parse", "--verify", "-q", "HEAD")
     dirty = git(repo, "status", "--porcelain")
@@ -360,9 +368,165 @@ def is_empty(repo):
     return not git_soft(repo, "for-each-ref", "--count=1", "--format=%(objectname)").strip()
 
 
+# What a working row is called, in place of the hash a commit has. The path follows, since that
+# is what tells two worktrees of one repository apart.
+WORKING = "wt:"
+# How many changed paths are stat'ed for the date a working row carries. A worktree with more
+# than this going on is not one whose exact minute anybody is reading.
+WORKING_STAT = 200
+
+
+def worktrees_of(repo):
+    """Every worktree of this repository, the one being read included.
+
+    A worktree is a second checkout of the same history, with its own HEAD and its own
+    uncommitted work. Git holds them all in one list, which is why the branch left half finished
+    in another folder is knowable from here at all.
+    """
+    trees = []
+    held = {}
+    for line in git_soft(repo, "worktree", "list", "--porcelain").splitlines():
+        line = line.strip()
+        if not line:
+            if held.get("path"):
+                trees.append(held)
+            held = {}
+            continue
+        key, _, value = line.partition(" ")
+        if key == "worktree":
+            held = {"path": os.path.normpath(value)}
+        elif key == "HEAD":
+            held["head"] = value
+        elif key == "branch":
+            # refs/heads/feat/one keeps its slashes: only the refs/heads/ in front comes off
+            held["branch"] = value[11:] if value.startswith("refs/heads/") else value
+        elif key in ("bare", "detached"):
+            held[key] = True
+    if held.get("path"):
+        trees.append(held)
+    return trees
+
+
+def status_of(tree):
+    """What one worktree holds that no commit does: the counts, and when it was last touched."""
+    staged = changed = untracked = 0
+    newest = 0.0
+    stated = 0
+    for line in git_soft(tree, "status", "--porcelain").splitlines():
+        if len(line) < 3:
+            continue
+        index, work, name = line[0], line[1], line[3:].strip().strip('"')
+        if index == "?":
+            untracked += 1
+        else:
+            if index != " ":
+                staged += 1
+            if work != " ":
+                changed += 1
+        # the newest of them is what says how long ago this was left, which is the whole question
+        # a worktree opened in another folder raises
+        if stated < WORKING_STAT:
+            stated += 1
+            # a rename is spelled "old -> new", and it is the new one that is on disk
+            name = name.rsplit(" -> ", 1)[-1]
+            try:
+                newest = max(newest, os.stat(os.path.join(tree, name)).st_mtime)
+            except OSError:
+                pass
+    return staged, changed, untracked, newest
+
+
+def working_rows(repo):
+    """One row per worktree holding uncommitted work, to hang above the commit it sits on.
+
+    It is not a commit and it says so: no hash, a dashed dot and a dashed line down to the commit
+    it was started from. What it answers is the question a repository of several worktrees raises
+    every time, which is where the work in progress was left.
+    """
+    rows = []
+    here = os.path.normpath(repo)
+    for tree in worktrees_of(repo):
+        if tree.get("bare") or not tree.get("head"):
+            continue
+        staged, changed, untracked, newest = status_of(tree["path"])
+        if not (staged or changed or untracked):
+            continue
+        when = datetime.datetime.fromtimestamp(newest or time.time()).astimezone()
+        rows.append({
+            "h": WORKING + tree["path"],
+            "p": [tree["head"]],
+            "an": "",
+            "t": when.isoformat(timespec="seconds"),
+            "s": "uncommitted changes",
+            "refs": [],
+            "wt": {
+                "path": tree["path"],
+                "branch": tree.get("branch") or "detached",
+                "here": tree["path"] == here,
+                "staged": staged,
+                "changed": changed,
+                "untracked": untracked,
+            },
+        })
+    return rows
+
+
+def hang_working_rows(commits, rows):
+    """Each row goes immediately above the commit its worktree sits on, or nowhere at all.
+
+    Nowhere is what a filtered read leaves: a worktree whose commit the filters removed has no
+    place to hang from, and a row hanging off nothing would draw a line into empty space.
+    """
+    for row in rows:
+        at = next((i for i, commit in enumerate(commits) if commit["h"] == row["p"][0]), None)
+        if at is not None:
+            commits.insert(at, row)
+    return commits
+
+
+def working_payload(repo, path):
+    """What one worktree holds that no commit does, file by file."""
+    path = os.path.normpath(path)
+    tree = next((one for one in worktrees_of(repo) if one["path"] == path), None)
+    if tree is None:
+        raise RuntimeError("no worktree of this repository at %s" % path)
+
+    files = []
+    # against HEAD, so what is staged and what is not are one answer: both are work no commit
+    # holds, and the panel is read to see what is going on rather than what git would commit
+    for line in git_soft(tree["path"], "diff", "--numstat", "HEAD").splitlines():
+        parts = line.split("\t")
+        if len(parts) != 3:
+            continue
+        added, removed, name = parts
+        files.append({
+            "a": None if added == "-" else int(added),
+            "d": None if removed == "-" else int(removed),
+            "path": name,
+            "st": "changed",
+        })
+    for line in git_soft(tree["path"], "status", "--porcelain").splitlines():
+        if line.startswith("??"):
+            files.append({"a": None, "d": None, "path": line[3:].strip().strip('"'),
+                          "st": "untracked"})
+
+    staged, changed, untracked, _ = status_of(tree["path"])
+    return {
+        "path": tree["path"],
+        "branch": tree.get("branch") or "detached",
+        "head": tree["head"],
+        "here": tree["path"] == os.path.normpath(repo),
+        "staged": staged,
+        "changed": changed,
+        "untracked": untracked,
+        "files": files,
+    }
+
+
 def graph_payload(repo, scope, limit, order, author="", since="", paths=""):
     commits = [] if is_empty(repo) else read_commits(repo, scope, limit, order,
                                                      author, since, paths)
+    hang_working_rows(commits, working_rows(repo))
     edges, lane_count = build_graph(commits)
     branch, dirty = head_of(repo)
     merged, twins = already_in_trunk(repo)
@@ -674,6 +838,9 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(branch_payload(self.which_repo(query)))
             elif url.path == "/api/fingerprint":
                 self.send_json({"fingerprint": fingerprint(self.which_repo(query))})
+            elif url.path == "/api/working":
+                self.send_json(working_payload(
+                    self.which_repo(query), unquote(query.get("path", [""])[0])))
             elif url.path == "/api/commit":
                 h = query.get("h", [""])[0]
                 if not h.isalnum():
