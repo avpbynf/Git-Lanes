@@ -430,6 +430,9 @@ button:disabled { cursor: default; color: var(--faint); }
   text-align: left;
 }
 
+/* not a ref but carried like one: where a shallow clone stops holding history */
+.ref.shallow { color: var(--faint); border-color: var(--faint); border-style: dashed; }
+
 .ref.local { color: var(--add); border-color: var(--add); }
 .ref.remote { color: var(--accent); border-color: var(--accent); }
 .ref.tag { color: var(--tag); border-color: var(--tag); }

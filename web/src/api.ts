@@ -1,4 +1,5 @@
-export type RefKind = 'head' | 'local' | 'remote' | 'tag'
+/** `shallow` is not a ref: it is where a shallow clone was cut, carried the same way. */
+export type RefKind = 'head' | 'local' | 'remote' | 'tag' | 'shallow'
 
 export interface GitRef {
   n: string

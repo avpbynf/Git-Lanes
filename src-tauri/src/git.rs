@@ -210,6 +210,11 @@ fn parse_refs(decoration: &str, remotes: &[String]) -> Vec<GitRef> {
             refs.push(GitRef { n: tag.trim().into(), k: "tag" });
             continue;
         }
+        // git slips these in among the refs, and neither one is a ref: taken for
+        // branches they showed as a branch named grafted on every shallow tip
+        if raw == "grafted" || raw == "replaced" {
+            continue;
+        }
         let kind = if remotes.iter().any(|remote| raw.starts_with(&format!("{remote}/"))) {
             "remote"
         } else {
@@ -227,6 +232,17 @@ struct Raw {
     t: String,
     s: String,
     refs: Vec<GitRef>,
+}
+
+/// The commits a shallow clone was cut at, empty when the clone is whole.
+///
+/// Read from the file rather than asked of git, which costs an open instead of
+/// a process. A worktree keeps its shallow list in the repository it belongs
+/// to, and that is not chased here: a worktree of a shallow clone says nothing.
+fn shallow_of(repo: &str) -> std::collections::HashSet<String> {
+    std::fs::read_to_string(Path::new(repo).join(".git").join("shallow"))
+        .map(|text| text.lines().map(str::trim).filter(|line| !line.is_empty()).map(str::to_string).collect())
+        .unwrap_or_default()
 }
 
 fn read_commits(
@@ -284,6 +300,8 @@ fn read_commits(
         .filter(|line| !line.is_empty())
         .collect();
 
+    let cut = shallow_of(repo);
+
     let mut commits = Vec::new();
     for record in git(repo, &args)?.split(RECORD) {
         let record = record.trim_matches(|c| c == '\r' || c == '\n');
@@ -298,13 +316,17 @@ fn read_commits(
             (Some(a), Some(b), Some(c), Some(d), Some(e), Some(f)) => (a, b, c, d, e, f),
             _ => continue,
         };
+        let mut refs = parse_refs(decoration, &remotes);
+        if cut.contains(h) {
+            refs.push(GitRef { n: "shallow".to_string(), k: "shallow" });
+        }
         commits.push(Raw {
             h: h.to_string(),
             p: parents.split_whitespace().map(str::to_string).collect(),
             an: an.to_string(),
             t: t.to_string(),
             s: s.to_string(),
-            refs: parse_refs(decoration, &remotes),
+            refs,
         });
     }
     Ok(commits)

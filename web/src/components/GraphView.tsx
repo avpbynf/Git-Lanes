@@ -6,6 +6,9 @@ import {
 
 const OVERSCAN = 10
 
+/** Why a history stops here rather than at its first commit. */
+const SHALLOW = 'the clone was cut here: git holds no parent for this commit'
+
 /** What the two columns on the right are written in, so a width measured is a width drawn. */
 const RULER = '11px "Segoe UI", system-ui, sans-serif'
 
@@ -182,7 +185,8 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
           {visible.map((commit) => {
             const fill = colorOf(commit.c, theme)
             const head = commit.refs.some((ref) => ref.k === 'head')
-            const tagged = commit.refs.some((ref) => ref.k !== 'head')
+            // a shallow marker is not a ref, so it does not ring the dot like one
+            const tagged = commit.refs.some((ref) => ref.k !== 'head' && ref.k !== 'shallow')
             const x = laneX(commit.lane)
             const y = rowY(commit.row)
             return (
@@ -228,7 +232,13 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
                   {carried.length > 0 && (
                     <span className="refs">
                       {carried.map((ref) => (
-                        <span key={ref.k + ref.n} className={`ref ${ref.k}`}>{ref.n}</span>
+                        <span
+                          key={ref.k + ref.n}
+                          className={`ref ${ref.k}`}
+                          title={ref.k === 'shallow' ? SHALLOW : undefined}
+                        >
+                          {ref.n}
+                        </span>
                       ))}
                     </span>
                   )}

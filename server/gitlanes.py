@@ -73,6 +73,10 @@ def parse_refs(decoration, remotes):
         if raw.startswith("tag: "):
             refs.append({"n": raw[5:].strip(), "k": "tag"})
             continue
+        # git slips these in among the refs, and neither one is a ref: taken for
+        # branches they showed as a branch named grafted on every shallow tip
+        if raw in ("grafted", "replaced"):
+            continue
         kind = "local"
         for remote in remotes:
             if raw.startswith(remote + "/"):
@@ -80,6 +84,20 @@ def parse_refs(decoration, remotes):
                 break
         refs.append({"n": raw, "k": kind})
     return refs
+
+
+def shallow_of(repo):
+    """The commits a shallow clone was cut at, empty when the clone is whole.
+
+    Read from the file rather than asked of git, which costs an open instead of
+    a process. A worktree keeps its shallow list in the repository it belongs
+    to, and that is not chased here: a worktree of a shallow clone says nothing.
+    """
+    try:
+        with open(os.path.join(repo, ".git", "shallow"), encoding="utf-8") as handle:
+            return {line.strip() for line in handle if line.strip()}
+    except OSError:
+        return set()
 
 
 def read_commits(repo, scope, limit, order, author="", since="", paths=""):
@@ -106,19 +124,24 @@ def read_commits(repo, scope, limit, order, author="", since="", paths=""):
         args.append("--")
         args += wanted
     remotes = remote_names(repo)
+    cut = shallow_of(repo)
     commits = []
     for record in git(repo, *args).split(RECORD):
         record = record.strip("\r\n")
         if not record:
             continue
-        h, parents, author, when, decoration, subject = record.split(FIELD, 5)
+        # `who`, not `author`: that name is the filter, read a few lines above
+        h, parents, who, when, decoration, subject = record.split(FIELD, 5)
+        refs = parse_refs(decoration, remotes)
+        if h in cut:
+            refs.append({"n": "shallow", "k": "shallow"})
         commits.append({
             "h": h,
             "p": parents.split() if parents else [],
-            "an": author,
+            "an": who,
             "t": when,
             "s": subject,
-            "refs": parse_refs(decoration, remotes),
+            "refs": refs,
         })
     return commits
 
