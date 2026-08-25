@@ -300,6 +300,18 @@ button:disabled { cursor: default; color: var(--faint); }
   pointer-events: none;
 }
 
+/* a history that stops here rather than at its first commit */
+.wires .stub { opacity: 0.5; }
+
+/* while one lane is being followed the others step back, far enough to read
+   the branch through the crowd and not so far that the shape is lost */
+.wires .faint path { opacity: 0.25; }
+.wires .faint path.stub { opacity: 0.12; }
+.wires .faint path.lit { opacity: 1; }
+
+/* the commit being read, marked where the graph is rather than where the row is */
+.wires .picked { stroke: var(--text); stroke-width: 1; opacity: 0.55; }
+
 .rows { position: relative; z-index: 1; }
 
 /* the two columns on the right are measured on their content, in ch plus the

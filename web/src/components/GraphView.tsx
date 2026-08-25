@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import type { Commit, Graph } from '../api'
+import type { Commit, Edge, Graph } from '../api'
 import {
   DOT, ROW, ago, colorOf, dayLabel, edgePath, edgeSpan, graphWidth, laneX, rowY, tint, type Theme,
 } from '../lanes'
@@ -47,6 +47,61 @@ function roomFor(values: string[], share: number): number {
   return Math.ceil(widths[Math.min(widths.length - 1, Math.floor(widths.length * share))])
 }
 
+/** Which rows an edge leaves and which it lands on, so a lane can be walked. */
+interface Links {
+  out: Map<number, Edge[]>
+  into: Map<number, Edge[]>
+}
+
+function linksOf(graph: Graph): Links {
+  const out = new Map<number, Edge[]>()
+  const into = new Map<number, Edge[]>()
+  const add = (map: Map<number, Edge[]>, row: number, edge: Edge) => {
+    const held = map.get(row)
+    if (held) held.push(edge)
+    else map.set(row, [edge])
+  }
+  for (const edge of graph.edges) {
+    add(out, edge.fr, edge)
+    if (edge.tr !== null) add(into, edge.tr, edge)
+  }
+  return { out, into }
+}
+
+/**
+ * The run of lane a row sits in: the edges above and below it that never leave
+ * that lane, the elbow at either end included.
+ *
+ * Walked rather than matched on the lane or on the colour, because neither
+ * answers: a lane freed and taken again by another branch is a second run in
+ * the same column, and colours are reused the same way.
+ */
+function runOf(graph: Graph, links: Links, row: number): Set<Edge> {
+  const run = new Set<Edge>()
+  const lane = graph.commits[row]?.lane
+  if (lane === undefined) return run
+
+  let at = row
+  for (;;) {
+    const down = links.out.get(at)?.find((edge) => edge.rl === lane && edge.fl === lane)
+    if (!down || run.has(down)) break
+    run.add(down)
+    if (down.tr === null || graph.commits[down.tr]?.lane !== lane) break
+    at = down.tr
+  }
+
+  at = row
+  for (;;) {
+    const up = links.into.get(at)?.find((edge) => edge.rl === lane && edge.tl === lane)
+    if (!up || run.has(up)) break
+    run.add(up)
+    if (graph.commits[up.fr]?.lane !== lane) break
+    at = up.fr
+  }
+
+  return run
+}
+
 interface Props {
   graph: Graph
   theme: Theme
@@ -64,6 +119,8 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
   const scroller = useRef<HTMLDivElement>(null)
   const [scrollTop, setScrollTop] = useState(0)
   const [viewport, setViewport] = useState(800)
+  // the row the pointer is on, which is what says which lane to follow
+  const [hovered, setHovered] = useState<number | null>(null)
   // the commit the eye is on, so new commits landing on top do not move it
   const anchor = useRef<{ h: string; delta: number } | null>(null)
   const jumped = useRef(0)
@@ -149,6 +206,12 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
     [graph],
   )
 
+  const links = useMemo(() => linksOf(graph), [graph])
+  const run = useMemo(
+    () => (hovered === null ? null : runOf(graph, links, hovered)),
+    [graph, links, hovered],
+  )
+
   const visible = graph.commits.slice(first, last)
   const wires = graph.edges.filter((edge) => {
     const [from, to] = edgeSpan(edge)
@@ -185,32 +248,37 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
           viewBox={`0 ${windowTop} ${width} ${windowHeight}`}
           style={{ top: windowTop }}
         >
-          {wires.map((edge) => {
-            const stroke = colorOf(edge.c, theme)
-            if (edge.tr === null) {
-              // the parent is below the window: a stub going nowhere
+          {/* the lane being followed keeps its strength and the rest give way */}
+          <g className={run ? 'faint' : undefined}>
+            {wires.map((edge) => {
+              const stroke = colorOf(edge.c, theme)
+              const lit = run?.has(edge) ? ' lit' : ''
+              if (edge.tr === null) {
+                // the parent is below the window: a stub going nowhere
+                return (
+                  <path
+                    key={`${edge.fr}-${edge.rl}-end`}
+                    className={`stub${lit}`}
+                    d={edgePath(edge.fr, edge.fl, edge.rl, edge.fr + 1, edge.rl)}
+                    stroke={stroke}
+                    strokeDasharray="3 3"
+                    strokeWidth={1.6}
+                    fill="none"
+                  />
+                )
+              }
               return (
                 <path
-                  key={`${edge.fr}-${edge.rl}-end`}
-                  d={edgePath(edge.fr, edge.fl, edge.rl, edge.fr + 1, edge.rl)}
+                  key={`${edge.fr}-${edge.rl}-${edge.tr}`}
+                  className={lit.trim() || undefined}
+                  d={edgePath(edge.fr, edge.fl, edge.rl, edge.tr, edge.tl)}
                   stroke={stroke}
-                  strokeDasharray="3 3"
                   strokeWidth={1.6}
                   fill="none"
-                  opacity={0.5}
                 />
               )
-            }
-            return (
-              <path
-                key={`${edge.fr}-${edge.rl}-${edge.tr}`}
-                d={edgePath(edge.fr, edge.fl, edge.rl, edge.tr, edge.tl)}
-                stroke={stroke}
-                strokeWidth={1.6}
-                fill="none"
-              />
-            )
-          })}
+            })}
+          </g>
           {visible.map((commit) => {
             const fill = colorOf(commit.c, theme)
             const head = commit.refs.some((ref) => ref.k === 'head')
@@ -220,6 +288,11 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
             const y = rowY(commit.row)
             return (
               <g key={commit.h} className={match(commit) ? undefined : 'faded'}>
+                {/* the commit being read carries the mark, since the row it sits
+                    on is off screen as soon as the graph is scrolled past it */}
+                {commit.h === selected && (
+                  <circle className="picked" cx={x} cy={y} r={DOT + 4.4} fill="none" />
+                )}
                 {/* where HEAD stands gets a halo, which is what a ref label would say twice */}
                 {head && (
                   <circle cx={x} cy={y} r={DOT + 3.2} fill="none" stroke={fill} strokeWidth={1.4} />
@@ -237,7 +310,11 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
           })}
         </svg>
 
-        <div className="rows" style={{ transform: `translateY(${windowTop}px)` }}>
+        <div
+          className="rows"
+          style={{ transform: `translateY(${windowTop}px)` }}
+          onMouseLeave={() => setHovered(null)}
+        >
           {visible.map((commit, index) => {
             const when = new Date(commit.t)
             const label = dayLabel(when)
@@ -253,7 +330,12 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
               match(commit) ? '' : 'faded',
             ].filter(Boolean).join(' ')
             return (
-              <div key={commit.h} className={className} onClick={() => onSelect(commit.h)}>
+              <div
+                key={commit.h}
+                className={className}
+                onClick={() => onSelect(commit.h)}
+                onMouseEnter={() => setHovered(first + index)}
+              >
                 <div className="gut">{newDay ? label : ''}</div>
                 <div />
                 <div className="msg">
