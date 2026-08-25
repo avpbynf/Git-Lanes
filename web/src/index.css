@@ -312,6 +312,14 @@ button:disabled { cursor: default; color: var(--faint); }
 /* the commit being read, marked where the graph is rather than where the row is */
 .wires .picked { stroke: var(--text); stroke-width: 1; opacity: 0.55; }
 
+/* its twin wears the same ring, broken, since it is the same change and not the same commit */
+.wires .twinned {
+  stroke: var(--accent);
+  stroke-width: 1;
+  opacity: 0.75;
+  stroke-dasharray: 3 2;
+}
+
 .rows { position: relative; z-index: 1; }
 
 /* the two columns on the right are measured on their content, in ch plus the
@@ -331,6 +339,8 @@ button:disabled { cursor: default; color: var(--faint); }
 
 .row:hover { background: var(--hover); }
 .row.sel { background: var(--sel); }
+/* the same change under another hash, lit with the row that found it */
+.row.twin { background: var(--hover); box-shadow: inset 2px 0 0 var(--accent); }
 /* a row and its dot fade together, and the wires never do: what is being looked
    for is one commit, and the shape around it is what places it */
 .row.faded,
@@ -403,6 +413,21 @@ button:disabled { cursor: default; color: var(--faint); }
 
 /* not a ref but carried like one: where a shallow clone stops holding history */
 .ref.shallow { color: var(--faint); border-color: var(--faint); border-style: dashed; }
+
+/* a ref and what is said about it travel together, so neither is cut from the other */
+.held { display: flex; gap: 4px; min-width: 0; }
+
+/* not a ref: what a trunk says about one. Filled, where a ref is outlined, so the two do not
+   read as two branches */
+.mark {
+  flex: none;
+  border-radius: 3px;
+  padding: 0 5px;
+  font-size: 10.5px;
+  line-height: 15px;
+  background: var(--faint);
+  color: var(--bg);
+}
 
 .ref.local { color: var(--add); border-color: var(--add); }
 .ref.remote { color: var(--accent); border-color: var(--accent); }

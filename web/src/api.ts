@@ -4,6 +4,8 @@ export type RefKind = 'head' | 'local' | 'remote' | 'tag' | 'shallow'
 export interface GitRef {
   n: string
   k: RefKind
+  /** Whether a trunk already holds this branch, under these hashes or under others. */
+  m?: boolean
 }
 
 export interface Commit {
@@ -16,6 +18,8 @@ export interface Commit {
   lane: number
   row: number
   c: number
+  /** The commit carrying this very change elsewhere: a replay of it, or its original. */
+  tw?: string
 }
 
 /** One parent link. It leaves fr/fl, travels down lane rl, and lands on tr/tl. */

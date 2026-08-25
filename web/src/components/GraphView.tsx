@@ -9,6 +9,10 @@ const OVERSCAN = 10
 /** Why a history stops here rather than at its first commit. */
 const SHALLOW = 'the clone was cut here: git holds no parent for this commit'
 
+/** Why a branch is marked as done with, and why the same change is drawn twice. */
+const MERGED = 'a trunk already holds this branch, as these commits or as a replay of them'
+const TWIN = 'the same change under another hash, which is what a replay leaves behind'
+
 /** What the two columns on the right are written in, so a width measured is a width drawn. */
 const RULER = '11px "Segoe UI", system-ui, sans-serif'
 
@@ -206,6 +210,13 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
     [graph],
   )
 
+  // the same change elsewhere, lit beside the one clicked: either of the two finds the other,
+  // the backends carrying the pair both ways round
+  const twin = useMemo(
+    () => (selected ? graph.commits.find((commit) => commit.h === selected)?.tw ?? null : null),
+    [graph, selected],
+  )
+
   const links = useMemo(() => linksOf(graph), [graph])
   const run = useMemo(
     () => (hovered === null ? null : runOf(graph, links, hovered)),
@@ -293,6 +304,9 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
                 {commit.h === selected && (
                   <circle className="picked" cx={x} cy={y} r={DOT + 4.4} fill="none" />
                 )}
+                {commit.h === twin && (
+                  <circle className="twinned" cx={x} cy={y} r={DOT + 4.4} fill="none" />
+                )}
                 {/* where HEAD stands gets a halo, which is what a ref label would say twice */}
                 {head && (
                   <circle cx={x} cy={y} r={DOT + 3.2} fill="none" stroke={fill} strokeWidth={1.4} />
@@ -327,6 +341,7 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
               'row',
               newDay && first + index > 0 ? 'day' : '',
               commit.h === selected ? 'sel' : '',
+              commit.h === twin ? 'twin' : '',
               match(commit) ? '' : 'faded',
             ].filter(Boolean).join(' ')
             return (
@@ -343,12 +358,14 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
                   {carried.length > 0 && (
                     <span className="refs">
                       {carried.map((ref) => (
-                        <span
-                          key={ref.k + ref.n}
-                          className={`ref ${ref.k}`}
-                          title={ref.k === 'shallow' ? SHALLOW : undefined}
-                        >
-                          {ref.n}
+                        <span key={ref.k + ref.n} className="held">
+                          <span
+                            className={`ref ${ref.k}`}
+                            title={ref.k === 'shallow' ? SHALLOW : undefined}
+                          >
+                            {ref.n}
+                          </span>
+                          {ref.m && <span className="mark" title={MERGED}>merged</span>}
                         </span>
                       ))}
                     </span>
@@ -360,7 +377,9 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
                   </span>
                   {commit.an}
                 </div>
-                <div className="when" title={when.toLocaleString()}>{ago(when)}</div>
+                <div className="when" title={commit.tw ? TWIN : when.toLocaleString()}>
+                  {ago(when)}
+                </div>
               </div>
             )
           })}
