@@ -384,7 +384,10 @@ button:disabled { cursor: default; color: var(--faint); }
 
 .row:hover { background: var(--hover); }
 .row.sel { background: var(--sel); }
-.row.faded { opacity: 0.28; }
+/* a row and its dot fade together, and the wires never do: what is being looked
+   for is one commit, and the shape around it is what places it */
+.row.faded,
+.wires .faded { opacity: 0.28; }
 .row.day { box-shadow: inset 0 1px 0 var(--line); }
 
 .gut { color: var(--faint); font-size: 11px; padding-left: 10px; }

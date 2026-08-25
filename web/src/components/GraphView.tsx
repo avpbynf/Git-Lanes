@@ -190,7 +190,7 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
             const x = laneX(commit.lane)
             const y = rowY(commit.row)
             return (
-              <g key={commit.h}>
+              <g key={commit.h} className={match(commit) ? undefined : 'faded'}>
                 {/* where HEAD stands gets a halo, which is what a ref label would say twice */}
                 {head && (
                   <circle cx={x} cy={y} r={DOT + 3.2} fill="none" stroke={fill} strokeWidth={1.4} />
