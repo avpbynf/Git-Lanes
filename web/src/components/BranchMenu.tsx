@@ -89,7 +89,8 @@ export function BranchMenu({ repo, scope, click, branch, dirty, picked, onScope,
   return (
     <div className="branches" ref={box}>
       <button className="pick" onClick={() => setOpen(!open)}>
-        <span className="strong">{bound ?? branch ?? 'no branch'}{dirty ? ' *' : ''}</span>
+        {/* the star is about the working tree, so it only follows the branch HEAD is on */}
+        <span className="strong">{active ?? 'no branch'}{dirty && active === branch ? ' *' : ''}</span>
         <span className="caret">{open ? '^' : 'v'}</span>
       </button>
 
