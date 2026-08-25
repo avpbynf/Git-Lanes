@@ -258,16 +258,23 @@ def read_plain_refs(repo, where):
 
     An annotated tag is an object of its own, so the peeled name is what points
     at the commit; a lightweight one has none and points there itself.
+
+    A symbolic ref points at another of them and is not one: origin/HEAD is the
+    only one here, and it cannot be told by its name, which git shortens to the
+    remote alone.
     """
     fmt = FIELD.join([
-        "%(refname:short)", "%(objectname)", "%(*objectname)", "%(creatordate:iso-strict)",
+        "%(refname:short)", "%(objectname)", "%(*objectname)",
+        "%(creatordate:iso-strict)", "%(symref)",
     ])
     listing = git(repo, "for-each-ref", "--sort=-creatordate", "--format=" + fmt, where)
     refs = []
     for line in listing.splitlines():
         if not line.strip():
             continue
-        name, tip, peeled, when = line.split(FIELD)
+        name, tip, peeled, when, symref = line.split(FIELD)
+        if symref:
+            continue
         refs.append({"name": name, "head": peeled or tip, "t": when})
     return refs
 
@@ -319,13 +326,10 @@ def branch_payload(repo):
             "ahead": ahead,
             "upstream": pushed,
         })
-    # origin/HEAD is a pointer at another of them, never a branch of its own
-    remotes = [ref for ref in read_plain_refs(repo, "refs/remotes")
-               if not ref["name"].endswith("/HEAD")]
     return {
         "base": pick_base(names, head),
         "branches": branches,
-        "remotes": remotes,
+        "remotes": read_plain_refs(repo, "refs/remotes"),
         "tags": read_plain_refs(repo, "refs/tags"),
     }
 
