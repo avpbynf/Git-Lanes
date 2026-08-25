@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   canPickFolder, closeRepo, discoverRepos, fetchBranches, openRepo, pickFolder,
   type Branch, type BranchList, type PlainRef, type RepoEntry,
@@ -100,9 +100,24 @@ export function Sidebar({
   const [typed, setTyped] = useState('')
   const [found, setFound] = useState<{ root: string; hits: RepoEntry[] } | null>(null)
   const [trouble, setTrouble] = useState<string | null>(null)
+  const read = useRef('')
 
+  /**
+   * The tree is read once per repository, and again when that repository moves.
+   *
+   * The graph blanks its fingerprint while it switches, so both signals fire on
+   * a switch and the tree would be read twice for one repository. A tree costs a
+   * rev-list per branch, so the read made without a fingerprint stands for the
+   * one that follows it.
+   */
   useEffect(() => {
     if (!shown) return
+    const asked = `${current ?? ''}|${fingerprint}`
+    const provisional = `${current ?? ''}|`
+    const covered = read.current === asked || (read.current === provisional && fingerprint !== '')
+    read.current = asked
+    if (covered) return
+
     let live = true
     fetchBranches(current)
       .then((list) => live && setAnswer({ repo: current, list }))
@@ -132,19 +147,27 @@ export function Sidebar({
     setTrouble(null)
     setFound(null)
     if (!path) return
+
+    let refused: string
     try {
       const { repo } = await openRepo(path)
       onRepos()
       onPickRepo(repo.path)
       setTyped('')
+      return
+    } catch (err) {
+      refused = err instanceof Error ? err.message : String(err)
+    }
+
+    // not a repository itself, so perhaps a shelf of them. If it is neither, the
+    // reason it was refused says more than the reason a scan came back empty:
+    // a backend that is down answers both, and only the first names the cause.
+    try {
+      const { repos: hits } = await discoverRepos(path)
+      if (hits.length) setFound({ root: path, hits })
+      else setTrouble(refused)
     } catch {
-      try {
-        const { repos: hits } = await discoverRepos(path)
-        if (!hits.length) setTrouble(`no repository in or under ${path}`)
-        else setFound({ root: path, hits })
-      } catch (err) {
-        setTrouble(err instanceof Error ? err.message : String(err))
-      }
+      setTrouble(refused)
     }
   }
 
@@ -160,8 +183,17 @@ export function Sidebar({
   }
 
   const drop = async (path: string) => {
-    await closeRepo(path)
-    onRepos()
+    try {
+      await closeRepo(path)
+      onRepos()
+      // the one being read must not become the one no row can reach any more
+      if (path === current) {
+        const next = repos.find((repo) => repo.path !== path)
+        if (next) onPickRepo(next.path)
+      }
+    } catch (err) {
+      setTrouble(err instanceof Error ? err.message : String(err))
+    }
   }
 
   // the answer carries the repository it read, so a stale tree never shows under another one
@@ -271,7 +303,11 @@ export function Sidebar({
             {canPickFolder ? (
               <button
                 className="twig add"
-                onClick={() => void pickFolder().then((path) => openFolder(path))}
+                onClick={() => {
+                  pickFolder()
+                    .then((path) => openFolder(path))
+                    .catch((err) => setTrouble(err instanceof Error ? err.message : String(err)))
+                }}
               >
                 + open a folder
               </button>
@@ -291,7 +327,7 @@ export function Sidebar({
             {trouble && <p className="empty">{trouble}</p>}
             {found && (
               <div className="found">
-                <p className="empty">{found.hits.length} under that folder</p>
+                <p className="empty">{found.hits.length} under {found.root}</p>
                 {found.hits.map((repo) => (
                   <button
                     key={repo.path}

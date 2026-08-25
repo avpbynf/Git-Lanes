@@ -19,6 +19,11 @@ above that file is written as if there were one backend. Break the symmetry and 
 in the browser and not in the window, or the reverse, and nothing says so until someone opens
 the other one.
 
+The one exception is a thing a browser genuinely cannot do, and `pick_folder` is the only one
+so far: there is no native folder dialog in a page. Such a command lives in Rust alone, and
+`api.ts` says so out loud with a flag the front end can ask about, the way `canPickFolder`
+does, so the page has somewhere else to go rather than a call that fails.
+
 There are no Tauri JS packages. The window is driven through `window.__TAURI__` globals and
 commands this repository declares itself, in `src-tauri/src/main.rs`. Adding a Tauri plugin
 would mean adding its JS package and its capability file; adding a plain crate and one command

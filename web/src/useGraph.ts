@@ -44,9 +44,21 @@ export function useGraph(repo: string | null, scope: Scope, order: Order, filter
       setAnswer({ key, graph, at: Date.now() })
     } catch (err) {
       if (mine !== ticket.current) return
+      // nothing was read, so anything the next check finds is worth reading again
+      fingerprint.current = null
       setAnswer({ key, error: err instanceof Error ? err.message : String(err), at: Date.now() })
     }
   }, [repo, scope, order, filters, key])
+
+  /** Read again, but only once the fingerprint says there is something to read. */
+  const check = useCallback(async () => {
+    try {
+      const { fingerprint: moved } = await fetchFingerprint(repo)
+      if (moved && moved !== fingerprint.current) void load()
+    } catch {
+      // the next tick will say whether the backend is really gone
+    }
+  }, [repo, load])
 
   useEffect(() => {
     // the state lands after the fetch resolves, never synchronously here
@@ -55,18 +67,12 @@ export function useGraph(repo: string | null, scope: Scope, order: Order, filter
   }, [load])
 
   useEffect(() => {
-    const refs = setInterval(async () => {
-      if (document.hidden) return
-      try {
-        const { fingerprint: current } = await fetchFingerprint(repo)
-        if (current && current !== fingerprint.current) void load()
-      } catch {
-        // the next tick will say whether the backend is really gone
-      }
-    }, REF_POLL)
+    // coming back to the window is not news either: it asks the same cheap
+    // question the timer asks, or every alt-tab would read the whole log again
     const wake = () => {
-      if (!document.hidden) void load()
+      if (!document.hidden) void check()
     }
+    const refs = setInterval(wake, REF_POLL)
     document.addEventListener('visibilitychange', wake)
     window.addEventListener('focus', wake)
     return () => {
@@ -74,7 +80,7 @@ export function useGraph(repo: string | null, scope: Scope, order: Order, filter
       document.removeEventListener('visibilitychange', wake)
       window.removeEventListener('focus', wake)
     }
-  }, [load, repo])
+  }, [check])
 
   const current = answer?.key === key ? answer : null
   return {

@@ -173,7 +173,7 @@ export const fetchGraph = (repo: string | null, scope: Scope, order: Order, filt
     : get<Graph>('/api/graph', {
         repo: repo ?? undefined,
         scope,
-        limit: String(WHOLE),
+        limit: WHOLE,
         order,
         ...filters,
       })
