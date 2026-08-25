@@ -55,7 +55,7 @@ export default function App() {
 
   useEffect(() => { document.documentElement.dataset.theme = settings.theme }, [settings.theme])
   useEffect(() => { if (current) localStorage.setItem('repo', current) }, [current])
-  useEffect(() => { document.title = graph ? `${graph.repo} . gitlanes` : 'gitlanes' }, [graph])
+  useEffect(() => { document.title = graph ? `${graph.repo} . GitLanes` : 'GitLanes' }, [graph])
 
   // the branch a project sits on is read with the list, so it goes stale unless
   // the list is read again when the repository being watched moves
@@ -176,7 +176,7 @@ export default function App() {
       <header className="bar" {...dragProps}>
         <SettingsMenu settings={settings} onChange={change} />
         {/* the tool, not the repository: which one is open is what the tree says */}
-        <span className="title">gitlanes{version && ` ${version}`}</span>
+        <span className="title">GitLanes{version && ` ${version}`}</span>
         <span className="spacer" />
         {/* nothing to say while it works: only a failure is worth a line in the bar */}
         {error && <span className="status bad">{error}</span>}

@@ -1,4 +1,4 @@
-# Working on gitlanes
+# Working on GitLanes
 
 The README says what this tool is and how to run it. This file says how it is built, what
 holds it together, and what has already cost time here. Nothing below repeats the README.

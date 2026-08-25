@@ -180,5 +180,5 @@ fn main() {
             commit_detail
         ])
         .run(tauri::generate_context!())
-        .expect("gitlanes could not start its window");
+        .expect("GitLanes could not start its window");
 }

@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "gitlanes",
+  "productName": "GitLanes",
   "version": "0.1.0",
   "identifier": "dev.gitlanes.app",
   "build": {
@@ -18,7 +18,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "gitlanes",
+        "title": "GitLanes",
         "width": 1120,
         "height": 520,
         "minWidth": 720,

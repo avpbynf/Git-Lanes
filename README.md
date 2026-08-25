@@ -1,4 +1,4 @@
-# gitlanes
+# GitLanes
 
 The commit graph of a local repository, in the browser, drawn the way GitLab draws it: one
 column per branch, an elbow where a branch opens and where it merges, dates down the left
