@@ -19,8 +19,8 @@ on:
       # A digit after the v, so a marker tag beginning with that letter is refused here rather than
       # by the check below, which would have queued a runner and checked the tree out first.
       - "v[0-9]*"
-  # For a release already out. The body is read back off the release, so a body edited by hand
-  # after the tag went out is what a second run builds against.
+  # For a release already out, or for a tag whose run died before it made one. A release that is
+  # already there keeps the body it has; what a second run replaces is the installer.
   workflow_dispatch:
     inputs:
       tag:
@@ -114,14 +114,20 @@ jobs:
         run: |
           # Everything under this version's heading, up to the next one. sed drops the blank line
           # the heading is followed by, which is punctuation of the file rather than content.
+          #
+          # release-body.md, and never changelog.md: this runs on Windows, where the file system
+          # does not tell one case from another, so a redirect into changelog.md would open
+          # CHANGELOG.md for writing and empty it before awk had read a line of it.
           awk -v heading="## $VERSION" '
             $0 == heading { inside = 1; next }
             inside && /^## / { exit }
             inside { print }
-          ' CHANGELOG.md | sed '/./,$!d' > changelog.md
+          ' CHANGELOG.md | sed '/./,$!d' > release-body.md
 
-          if [ ! -s changelog.md ]; then
+          if [ ! -s release-body.md ]; then
             echo "::error::CHANGELOG.md carries no entry under '## $VERSION'"
+            echo "the headings it does carry:"
+            grep -n '^## ' CHANGELOG.md || true
             exit 1
           fi
 
@@ -189,6 +195,6 @@ jobs:
             # compare link under a heading, and a body written by hand is why the file is kept.
             gh release create "$TAG" "$INSTALLER" \
               --title "$TAG" \
-              --notes-file changelog.md \
+              --notes-file release-body.md \
               --prerelease="$PRERELEASE"
           fi
