@@ -1,0 +1,20 @@
+# Normalise line endings to LF, in the repository and in the working tree alike. PowerShell reads
+# LF as happily as it reads CRLF, so nothing here is an exception: a CRLF turning up is a tool
+# having written it rather than a file needing it.
+* text=auto eol=lf
+
+*.ts   text
+*.tsx  text
+*.rs   text
+*.py   text
+*.ps1  text
+*.css  text
+*.html text
+*.json text
+*.toml text
+*.yml  text
+*.md   text
+
+*.png  binary
+*.ico  binary
+*.icns binary
