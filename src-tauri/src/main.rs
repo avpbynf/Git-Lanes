@@ -1,6 +1,7 @@
 // A release build must not open a console behind the window.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod actions;
 mod git;
 
 use git::{BranchList, CommitDetail, Filters, Graph, RepoEntry, WorkingDetail};
@@ -171,6 +172,37 @@ async fn working(repo: Option<String>, path: String) -> Result<WorkingDetail, St
     off_thread(move || git::working_detail(&which_repo(repo)?, &path)).await
 }
 
+#[tauri::command]
+async fn project_actions(repo: Option<String>) -> Result<Vec<actions::Action>, String> {
+    off_thread(move || Ok(actions::actions_for(&which_repo(repo)?))).await
+}
+
+/// Answers once the command is running. What it does after that arrives as events, since a build
+/// worth watching is a build too long to wait for in one answer.
+#[tauri::command]
+async fn run_action(
+    app: tauri::AppHandle,
+    repo: Option<String>,
+    index: usize,
+    sha: String,
+    refname: String,
+) -> Result<(), String> {
+    let repo = which_repo(repo)?;
+    actions::start(app, repo, index, sha, refname)
+}
+
+#[tauri::command]
+async fn stop_action() -> Result<(), String> {
+    actions::stop()
+}
+
+/// Opens the file in whatever the system opens JSON with, writing an example first if there is
+/// nothing there yet, and answers where it is.
+#[tauri::command]
+async fn edit_actions(repo: Option<String>) -> Result<String, String> {
+    off_thread(move || actions::open_actions(&which_repo(repo)?)).await
+}
+
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -183,7 +215,11 @@ fn main() {
             branches,
             fingerprint,
             commit_detail,
-            working
+            working,
+            project_actions,
+            run_action,
+            stop_action,
+            edit_actions
         ])
         .run(tauri::generate_context!())
         .expect("GitLanes could not start its window");
