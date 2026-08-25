@@ -158,19 +158,24 @@ def build_graph(commits):
     lanes = []            # hash awaited in each lane, None when the lane is free
     colors = []           # colour index carried by each lane
     edges = []
-    next_color = 0
 
     def open_lane(wanted):
-        nonlocal next_color
         try:
             i = lanes.index(None)
         except ValueError:
             i = len(lanes)
             lanes.append(None)
             colors.append(0)
+        # The colour is what tells two lanes apart, so a lane may not take one
+        # another live lane is already carrying. Counting up instead handed the
+        # same colour to two lanes drawn at once, on a fifth of the rows of a
+        # repository eight lanes wide.
+        taken = {colors[j] for j, want in enumerate(lanes) if want is not None and j != i}
+        colour = 0
+        while colour in taken:
+            colour += 1
+        colors[i] = colour
         lanes[i] = wanted
-        colors[i] = next_color
-        next_color += 1
         return i
 
     for row, commit in enumerate(commits):
