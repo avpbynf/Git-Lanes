@@ -39,7 +39,7 @@ in the folder it is reading.
 
 ## Quick start
 
-Windows: take `Git Lanes_<version>_x64-setup.exe` from the
+Windows: take `Git.Lanes_<version>_x64-setup.exe` from the
 [releases](https://github.com/avpbynf/Git-Lanes/releases), run it, and open the window it installs.
 It carries what it needs: the window reads git in Rust, so nothing has to be installed beside git
 itself.

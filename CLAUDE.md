@@ -23,6 +23,12 @@ The one thing the rename does cost is unavoidable: the installer is named after 
 so is the folder it installs into, so a version under the new name lands beside the old one
 rather than over it. The old one is uninstalled by hand, once.
 
+**A space in the product name comes back as a dot on the release page.** The installer is built as
+`Git Lanes_<version>_x64-setup.exe` and GitHub attaches it as `Git.Lanes_...`, because that is what
+it does to a space in an asset's name. The release workflow finds the file by a glob rather than by
+name, so nothing breaks; what has to agree with it is the README, which tells somebody what to look
+for on that page and therefore spells the name GitHub gives rather than the one the bundler does.
+
 **Renaming the repository on GitHub broke the build, and not where it said.** A runner checks out
 into `D:\a\<name>\<name>`, and `src-tauri/target` is cached across runs with that path written all
 through it. Restored under the new name, the build went looking for a Tauri permissions file in a
