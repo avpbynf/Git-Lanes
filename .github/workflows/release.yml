@@ -133,6 +133,8 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2.2.0
 
+      # The repository's name is in the key for the reason build.yml gives: it is in the checkout
+      # path, and what target/ holds is full of that path.
       - name: Cache what cargo downloads and what it builds
         uses: actions/cache@v6
         with:
@@ -141,8 +143,8 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             src-tauri/target
-          key: cargo-${{ runner.os }}-${{ hashFiles('src-tauri/Cargo.lock') }}
-          restore-keys: cargo-${{ runner.os }}-
+          key: cargo-${{ runner.os }}-${{ github.repository }}-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-${{ github.repository }}-
 
       - uses: ./.github/actions/tauri-cli
 
