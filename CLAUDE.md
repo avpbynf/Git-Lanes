@@ -23,6 +23,13 @@ The one thing the rename does cost is unavoidable: the installer is named after 
 so is the folder it installs into, so a version under the new name lands beside the old one
 rather than over it. The old one is uninstalled by hand, once.
 
+**Renaming the repository on GitHub broke the build, and not where it said.** A runner checks out
+into `D:\a\<name>\<name>`, and `src-tauri/target` is cached across runs with that path written all
+through it. Restored under the new name, the build went looking for a Tauri permissions file in a
+folder that no longer existed and reported that, which sends whoever reads it into the bundler
+rather than into the cache. The repository's name is part of the cache key now, in both workflows,
+so a rename invalidates it instead of poisoning it.
+
 ## The shape of it
 
 Three pieces, and the first rule follows from there being two of the second:

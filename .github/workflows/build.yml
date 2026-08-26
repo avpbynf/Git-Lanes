@@ -46,6 +46,10 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2.2.0
 
+      # The repository's name is in the key because it is in the checkout path, D:\a\<name>\<name>,
+      # and what target/ holds is full of that path: a cache saved under one name and restored
+      # under another sends the build looking for files in a folder that no longer exists, and it
+      # says so about a permissions file of Tauri's rather than about the rename that caused it.
       - name: Cache what cargo downloads and what it builds
         uses: actions/cache@v6
         with:
@@ -54,8 +58,8 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             src-tauri/target
-          key: cargo-${{ runner.os }}-${{ hashFiles('src-tauri/Cargo.lock') }}
-          restore-keys: cargo-${{ runner.os }}-
+          key: cargo-${{ runner.os }}-${{ github.repository }}-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-${{ github.repository }}-
 
       - uses: ./.github/actions/tauri-cli
 
