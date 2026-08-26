@@ -4,11 +4,10 @@ import {
   type Branch, type BranchList, type PlainRef, type RepoEntry,
 } from '../api'
 import { ago } from '../lanes'
-import { usePanelWidth } from '../panel'
+import { MIN_WIDTH, usePanelWidth } from '../panel'
 import { countOf, ordered, tree, type Leaf, type Named, type Node } from '../refs'
 import { HEADS, REMOTES, TAGS } from '../scope'
 
-const MIN_WIDTH = 200
 const WIDTH = 300
 
 interface Props {

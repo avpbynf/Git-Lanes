@@ -4,7 +4,7 @@ import {
   type Commit, type CommitDetail, type WorkingDetail,
 } from '../api'
 import { useActions } from '../actions'
-import { usePanelWidth } from '../panel'
+import { MIN_WIDTH, usePanelWidth } from '../panel'
 import type { PanelMode } from '../settings'
 
 const CLOSE = (
@@ -13,7 +13,6 @@ const CLOSE = (
   </svg>
 )
 
-const MIN_WIDTH = 320
 const WIDTH = 440
 
 /** How long a read may take before it is worth saying that it is running. */

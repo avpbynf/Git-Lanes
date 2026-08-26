@@ -1,6 +1,15 @@
 import { useRef, useState, type PointerEvent } from 'react'
 
 /**
+ * How narrow either side may be pulled.
+ *
+ * One number for both, since the two are the same thing mirrored: a panel that stopped wider
+ * than the other read as a panel that was holding something back, and what somebody wants a
+ * column reduced to is their business rather than this file's.
+ */
+export const MIN_WIDTH = 200
+
+/**
  * A panel dragged wider or narrower by one of its edges.
  *
  * The pointer is captured, so the drag survives leaving the few pixels it
