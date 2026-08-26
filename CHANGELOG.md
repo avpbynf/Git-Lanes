@@ -10,6 +10,14 @@ than publishing an installer named after one thing and built from another.
 Nothing here promises what the next version holds, and nothing under `1.0.0` promises to hold
 still.
 
+## Unreleased
+
+- **The panel says why a file is not clickable**, under the list, instead of leaving you to
+  wonder whether the rows were meant to be. A list of files that opens nothing looks exactly like
+  a list nobody thought to make clickable, and the two are worth telling apart.
+
+- **A project's commands sit centred** in the panel rather than against its left edge.
+
 ## 0.4.0
 
 - **The name takes a space: Git Lanes.** What changed is what you read, in the window's title, in

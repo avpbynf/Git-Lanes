@@ -114,6 +114,7 @@ export function CommitPanel({ repo, hash, known, beat, mode, onClose }: Props) {
    * stays a row: a cursor that promises what no click delivers is worse than no cursor at all.
    */
   const open = doing.diffReady && Boolean(hash)
+  const listed = (detail?.files.length ?? 0) + (work?.files.length ?? 0)
   const row = (key: string, path: string, counts: ReactNode) => (
     <div
       key={key}
@@ -229,6 +230,15 @@ export function CommitPanel({ repo, hash, known, beat, mode, onClose }: Props) {
               )
             )}
           </>
+        )}
+
+        {/* said rather than left to be noticed: a list of files that opens nothing looks exactly
+            like a list of files whose rows nobody thought to make clickable */}
+        {canRunActions && !doing.diffReady && listed > 0 && (
+          <p className="lack">
+            nothing in your own file says what opens a diff, so these are rows rather than
+            buttons. The pencil above opens that file.
+          </p>
         )}
 
         {/* last, so that what a command writes never pushes the commit's own facts off the
