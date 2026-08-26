@@ -12,6 +12,11 @@ still.
 
 ## Unreleased
 
+- **A project says which branches its work lands on.** `merged` was measured against `dev`,
+  `main`, `master` and `trunk`, and a repository whose trunk is called anything else was told
+  nothing, silently. Those four are still what happens by default, and a project that says
+  otherwise writes `trunks` beside its commands.
+
 - **The columns drag.** A strip above the rows names them and the line between two of them is what
   it is dragged by, so the author, the date and the gutter of days take the width you want rather
   than the width their longest value asks for. Letting a grip go twice hands the measurement back.

@@ -75,10 +75,13 @@ because it is not history yet: how many files are staged, changed and untracked,
 were last touched. Every worktree of the repository gets its own, on its own branch, so work left
 in a folder nobody has open any more is visible from here.
 
-**A branch a trunk already holds says so**, with a `merged` tag beside its name, whether `dev` or
-`main` holds its very commits or the same changes replayed under other hashes by a rebase or a
+**A branch a trunk already holds says so**, with a `merged` tag beside its name, whether the
+trunk holds its very commits or the same changes replayed under other hashes by a rebase or a
 cherry-pick. Git says nothing about the second, which is what makes a branch finished with months
 ago read as work still waiting. Clicking either copy of a replayed change rings both.
+
+The trunks are `dev`, `main`, `master` and `trunk` until a project says otherwise, which it does
+in the same file its commands live in, below.
 
 **Two ways of narrowing**, in the row above the graph, and the difference is on purpose. The text
 field dims what does not match, so the shape of the graph stays readable while the eye looks for
@@ -110,6 +113,21 @@ example in it and opens it.
   ]
 }
 ```
+
+A project with more to say than its commands writes an object instead of that list, and the two
+are read alike, so a file written before there was anything else to say stays as it is:
+
+```json
+{
+  "C:\\Users\\you\\code\\your-app": {
+    "trunks": ["develop", "release"],
+    "actions": [{ "name": "bundle it", "run": "cargo tauri build" }]
+  }
+}
+```
+
+`trunks` is what a `merged` tag is measured against: the branches this project's work lands on,
+whatever they are called here.
 
 **A command runs on the commit you clicked, in a worktree made for it and removed afterwards.**
 That is the whole reason this is worth having: building the state of a commit that is not the one
