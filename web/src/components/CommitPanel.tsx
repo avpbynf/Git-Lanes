@@ -125,6 +125,7 @@ export function CommitPanel({ repo, hash, known, mode, onClose }: Props) {
             <button className="quiet" onClick={() => void doing.edit()}>
               {doing.actions.length ? 'edit' : 'add an action'}
             </button>
+            {doing.trouble && <span className="trouble">{doing.trouble}</span>}
             {doing.running && (
               <button className="quiet" onClick={() => void doing.stop()}>stop</button>
             )}

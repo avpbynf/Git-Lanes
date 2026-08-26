@@ -21,6 +21,8 @@ interface Running {
  */
 export function useActions(repo: string | null) {
   const [actions, setActions] = useState<Action[]>([])
+  /** Why there are none, when the reason is not simply that none are written. */
+  const [trouble, setTrouble] = useState<string | null>(null)
   const [lines, setLines] = useState<ActionLine[]>([])
   const [running, setRunning] = useState<Running | null>(null)
   const [ended, setEnded] = useState<ActionEnded | null>(null)
@@ -30,8 +32,18 @@ export function useActions(repo: string | null) {
   useEffect(() => {
     let live = true
     fetchActions(repo)
-      .then((found) => live && setActions(found))
-      .catch(() => live && setActions([]))
+      .then((found) => {
+        if (!live) return
+        setActions(found)
+        setTrouble(null)
+      })
+      .catch((err) => {
+        if (!live) return
+        setActions([])
+        // said out loud rather than swallowed: a list that is empty because the file would not
+        // parse looks exactly like a list that is empty because nothing is written in it
+        setTrouble(err instanceof Error ? err.message : String(err))
+      })
     return () => {
       live = false
     }
@@ -101,5 +113,5 @@ export function useActions(repo: string | null) {
     setEnded(null)
   }, [])
 
-  return { actions, lines, running, ended, start, stop, edit, clear }
+  return { actions, trouble, lines, running, ended, start, stop, edit, clear }
 }
