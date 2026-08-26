@@ -64,6 +64,19 @@ fn git_soft(repo: &str, args: &[&str]) -> String {
     git(repo, args).unwrap_or_default()
 }
 
+/// Same again, unread. What `git show <rev>:<path>` answers is a file, and a file is not text:
+/// decoding it would turn every byte git could not read as UTF-8 into a replacement character and
+/// hand an editor something that is no longer what the commit holds.
+pub fn git_bytes(repo: &str, args: &[&str]) -> Result<Vec<u8>, String> {
+    let mut command = git_command(repo, args);
+    let output = command.output().map_err(|err| format!("git could not start: {err}"))?;
+    if !output.status.success() {
+        let message = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(if message.is_empty() { "git failed".into() } else { message });
+    }
+    Ok(output.stdout)
+}
+
 /// Absolute root of the repository holding a path.
 pub fn toplevel(path: &str) -> Result<String, String> {
     if path.is_empty() || !Path::new(path).is_dir() {
