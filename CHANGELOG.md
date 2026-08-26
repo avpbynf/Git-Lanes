@@ -10,7 +10,7 @@ than publishing an installer named after one thing and built from another.
 Nothing here promises what the next version holds, and nothing under `1.0.0` promises to hold
 still.
 
-## Unreleased
+## 0.2.1
 
 - **Saving the file of actions is enough for the list to hold them.** A command added or renamed
   in it stayed unread until the window was reloaded by hand, and so did a change to the branches
