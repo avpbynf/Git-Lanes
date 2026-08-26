@@ -127,6 +127,12 @@ is what someone decides once; what a panel header holds is what someone decides 
 it. The commit panel has a third state, gone until a click and closed by its cross, which is a
 choice in the menu rather than where the window starts.
 
+**The user's own file has one key that names no repository**, `diff`, and that is why it is read
+as a plain object rather than as a table of projects. Read as a table it would fail on that one
+key and answer an empty table, which is to say it would hide every command in the file rather
+than the line it could not place. Every other key is an absolute path, so nothing else collides
+with it. The Python backend already skips what is not a path, and there is nothing there to add.
+
 ## Traps already paid for
 
 - **`git for-each-ref` shortens `refs/remotes/origin/HEAD` to `origin`**, so filtering remote
