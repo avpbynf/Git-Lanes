@@ -10,7 +10,7 @@ than publishing an installer named after one thing and built from another.
 Nothing here promises what the next version holds, and nothing under `1.0.0` promises to hold
 still.
 
-## Unreleased
+## 0.4.1
 
 - **The panel says why a file is not clickable**, under the list, instead of leaving you to
   wonder whether the rows were meant to be. A list of files that opens nothing looks exactly like
