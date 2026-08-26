@@ -95,6 +95,13 @@ nothing, and it is gone. Nothing is fetched while scrolling.
 is polled every two and a half seconds, and the graph is read again only when it moves. A blind
 reload would move two megabytes per repository per tick. A hidden tab polls nothing.
 
+**The user's own file is in that fingerprint too**, by its date and its size rather than by its
+contents, and it is the only thing in there that belongs to no repository. A project's commands
+and the branches its work lands on are both read from it, and saving it is a change git cannot
+see: without it in the fingerprint, an edit sat unread until the window was reloaded by hand.
+What that fingerprint moving carries is the whole answer, so the commands are read again from the
+same beat rather than from a poll of their own.
+
 **Every row of the graph is a grid of its own**, so the browser cannot line the columns up: an
 automatic width would land differently on each row. The author and date columns are therefore
 measured in JavaScript, over the loaded commits, with a canvas and the font they are drawn in,
