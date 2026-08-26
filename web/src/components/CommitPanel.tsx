@@ -113,7 +113,11 @@ export function CommitPanel({ repo, hash, known, mode, onClose }: Props) {
               <button
                 key={action.name}
                 disabled={Boolean(doing.running)}
-                title={action.run}
+                title={
+                  doing.running
+                    ? `${doing.running.name} is running on ${doing.running.sha.slice(0, 7)}`
+                    : action.run
+                }
                 onClick={() => {
                   const refname = known?.refs.find((ref) => ref.k === 'local')?.n ?? ''
                   void doing.start(index, hash, refname)
@@ -132,7 +136,7 @@ export function CommitPanel({ repo, hash, known, mode, onClose }: Props) {
           </div>
         )}
 
-        {(doing.lines.length > 0 || doing.ended) && (
+        {doing.logFor === hash && (doing.lines.length > 0 || doing.ended) && (
           <div className="log">
             <p className={doing.ended && doing.ended.code !== 0 ? 'empty bad' : 'empty'}>
               {doing.running

@@ -265,13 +265,13 @@ button:disabled { cursor: default; color: var(--faint); }
 
 .log .empty button:hover { color: var(--text); }
 
+/* what a command writes is written for a terminal: columns line up or they say nothing */
 .log pre {
   max-height: 40vh;
   overflow: auto;
   scrollbar-color: var(--line) transparent;
   margin: 0;
-  font-size: 11px;
-  line-height: 1.35;
+  font: 11px/1.4 Consolas, 'Cascadia Mono', 'Courier New', monospace;
   white-space: pre-wrap;
   word-break: break-word;
   color: var(--dim);

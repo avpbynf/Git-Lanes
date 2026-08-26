@@ -23,6 +23,8 @@ export function useActions(repo: string | null) {
   const [actions, setActions] = useState<Action[]>([])
   /** Why there are none, when the reason is not simply that none are written. */
   const [trouble, setTrouble] = useState<string | null>(null)
+  /** The commit the output on screen belongs to, and nowhere else is it shown. */
+  const [logFor, setLogFor] = useState<string | null>(null)
   const [lines, setLines] = useState<ActionLine[]>([])
   const [running, setRunning] = useState<Running | null>(null)
   const [ended, setEnded] = useState<ActionEnded | null>(null)
@@ -77,6 +79,7 @@ export function useActions(repo: string | null) {
       setEnded(null)
       const now = { sha, name: action.name }
       setRunning(now)
+      setLogFor(sha)
       held.current = now
       try {
         await runAction(repo, index, sha, refname)
@@ -111,7 +114,8 @@ export function useActions(repo: string | null) {
   const clear = useCallback(() => {
     setLines([])
     setEnded(null)
+    setLogFor(null)
   }, [])
 
-  return { actions, trouble, lines, running, ended, start, stop, edit, clear }
+  return { actions, trouble, lines, logFor, running, ended, start, stop, edit, clear }
 }
