@@ -51,9 +51,13 @@ stay in that tree, and the one being read is the one lit.
 ## What it shows
 
 **The graph, in the middle.** The whole history at once, so scrolling asks for nothing further.
-The commit being read is ringed, the row under the pointer lights the branch it belongs to, and
-the arrows walk from one commit to the next. Click a commit for its message and the files it
-touched.
+The commit being read is ringed, the arrows walk from one commit to the next, and a click opens
+its message and the files it touched.
+
+**The path a commit came by** lights while the rest of the wires step back: down its first
+parents to the root, crossing the elbow where its branch left the trunk, and up the line that
+carried on from it. The menu says when, since it is a matter of taste: under the pointer, which
+is how it starts, on a click, which holds it still until another one is clicked, or never.
 
 **The tree, on the left.** The projects, then the local branches, the remote ones and the tags,
 each name filed under the folders it already spells, so `feat/custom-images` sits under `feat`. A

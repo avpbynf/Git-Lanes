@@ -19,6 +19,15 @@ still.
   and the output arrives line by line while it runs. The window only, and never the Python
   backend, which answers on a port any page in any browser can post to.
 
+## Unreleased
+
+- **The path a commit came by is lit whole, and only when you want it.** It used to light the run
+  of lane the commit sits in, which stopped at the elbow: a branch of a single commit lit that one
+  segment and nothing of where it came from. It now follows the first parents down to the root and
+  the line that carried on upwards, so the whole way through is drawn. And the menu decides when it
+  happens at all: under the pointer as before, on a click, which holds it until another commit is
+  clicked, or never.
+
 ## 0.1.0
 
 The first release, and an installer for it.
