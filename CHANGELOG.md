@@ -10,6 +10,14 @@ than publishing an installer named after one thing and built from another.
 Nothing here promises what the next version holds, and nothing under `1.0.0` promises to hold
 still.
 
+## Unreleased
+
+- **`merged` is said once on a row.** Two branches left on the same commit, which is what a pair
+  of topic branches becomes once both have landed, each printed the word for themselves: the row
+  read `perf/warmup merged feat/scale merged`. The badge answers of the commit rather than of the
+  label, and two branches on one commit are given the same answer by construction, so the second
+  one was the first repeated word for word.
+
 ## 0.3.0
 
 - **A file in the panel opens its diff where you read diffs.** Both sides of it are written out
