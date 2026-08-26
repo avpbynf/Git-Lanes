@@ -12,6 +12,10 @@ still.
 
 ## Unreleased
 
+- **The columns drag.** A strip above the rows names them and the line between two of them is what
+  it is dragged by, so the author, the date and the gutter of days take the width you want rather
+  than the width their longest value asks for. Letting a grip go twice hands the measurement back.
+
 - **The output of an action belongs to the commit it was started on.** It used to stay on screen
   whichever commit was clicked next, which read as though the new one had just been built.
 

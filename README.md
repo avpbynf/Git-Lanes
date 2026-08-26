@@ -54,6 +54,11 @@ stay in that tree, and the one being read is the one lit.
 The commit being read is ringed, the arrows walk from one commit to the next, and a click opens
 its message and the files it touched.
 
+**The columns are named in a strip above the rows**, and the line between two of them drags: the
+dates on the left, the author and the date on the right take whatever width you give them, and the
+subject keeps what is left. Two of those are measured on what is loaded rather than guessed, and a
+grip let go of twice hands that measurement back.
+
 **The path a commit came by** lights while the rest of the wires step back: down its first
 parents to the root, crossing the elbow where its branch left the trunk, and up the line that
 carried on from it. The menu says when, since it is a matter of taste: under the pointer, which
