@@ -110,8 +110,15 @@ example in it and opens it.
 That is the whole reason this is worth having: building the state of a commit that is not the one
 checked out would otherwise mean checking it out, and that disturbs the work the window is open
 beside. `{worktree}` is that folder, and `{repo}`, `{sha}`, `{short}` and `{ref}` are there too;
-`cwd` says where to run, the worktree by default. The output arrives line by line in the panel
-while it runs, and `stop` kills the command and everything it started.
+`cwd` says where to run, the worktree by default. The output belongs to the commit it was started
+on and is shown there and nowhere else, line by line while it runs, and `stop` kills the command
+and everything it started.
+
+The line is given to the bash git itself brings, so `&&`, quotes and pipes mean what they mean
+everywhere else, and the paths above are spelled the way that shell spells them, `/c/Users/...`
+rather than `C:\Users\...`. It is found from `git --exec-path` and never from the name `bash` on
+the PATH, which on Windows is as likely to be WSL's launcher, where a build would run in another
+machine's file system entirely. Without it the line goes to `cmd` instead.
 
 The file is yours and lives beside the list of repositories, never in a repository: a project you
 cloned cannot bring its own commands with it. And a command runs in the window only, never through

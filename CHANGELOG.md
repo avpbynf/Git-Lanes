@@ -12,14 +12,21 @@ still.
 
 ## Unreleased
 
+- **The output of an action belongs to the commit it was started on.** It used to stay on screen
+  whichever commit was clicked next, which read as though the new one had just been built.
+
+- **A command is given to the bash git brings with it**, so `&&`, quotes and pipes behave, and the
+  paths handed to it are spelled the way that shell spells them. Never the `bash` on the PATH,
+  which on Windows is as likely to be WSL's launcher and would run the build inside another
+  machine's file system. The output is drawn in a monospaced face, since what a command writes is
+  written for a terminal.
+
 - **Your own commands, on the commit you clicked.** A project's actions live in
   `%APPDATA%\gitlanes\actions.json` and show up as buttons in the panel on the right: a build, a
   deployment to a test instance, anything a command line can do. Each one runs in a worktree made
   for that commit and removed afterwards, so the state being built is never the one you have open,
   and the output arrives line by line while it runs. The window only, and never the Python
   backend, which answers on a port any page in any browser can post to.
-
-## Unreleased
 
 - **The path a commit came by is lit whole, and only when you want it.** It used to light the run
   of lane the commit sits in, which stopped at the elbow: a branch of a single commit lit that one
