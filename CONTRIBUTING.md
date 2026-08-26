@@ -84,18 +84,25 @@ day a change was merged on the strength of a browser pass alone and did not buil
 The version lives in one place, the `version` line of `src-tauri/Cargo.toml`. Rust reads it at
 compile time, the Python backend parses that same file, and the installer is named after it.
 
-On `dev`, in one commit:
+One commit, on a branch of its own, entering `dev` by a pull request like every other:
 
 1. Bump that version line.
 2. Rename `## Unreleased` in CHANGELOG.md to the new version.
 
-Then, once `dev` is green:
+It is no exception to the rule above, and it could not be one: `dev` requires `build`, and a
+commit pushed straight there carries no run of it. What is refused names the check rather than
+the rule, so the refusal reads as a broken workflow when it is the workflow working.
+
+Then, once `dev` is green, open a pull request from `dev` to `main`. Not to press anything: it is
+what makes `main-from-dev` run, and a check from a `pull_request` workflow lands on the head
+commit of the request, which is the very commit the fast-forward below pushes. Without that
+request, `main` refuses the push for a check that never ran.
 
     git push origin origin/dev:main      a fast-forward, never a merge button
     git tag v0.2.0 main
     git push origin v0.2.0
 
-The tag is what publishes. The release workflow refuses a tag that disagrees with the manifest or
+The request closes itself as merged once its commits are there. The tag is what publishes. The release workflow refuses a tag that disagrees with the manifest or
 a version CHANGELOG.md has no entry for, builds the page, derives the icons, bundles the
 installer, and creates the release with that installer attached and the changelog entry as its
 body. A version carrying `-alpha` or `-beta` is marked as a pre-release by the version itself.
