@@ -10,7 +10,7 @@ than publishing an installer named after one thing and built from another.
 Nothing here promises what the next version holds, and nothing under `1.0.0` promises to hold
 still.
 
-## Unreleased
+## 0.3.0
 
 - **A file in the panel opens its diff where you read diffs.** Both sides of it are written out
   under the name they carry in the repository, and handed to a line you write once in the same
