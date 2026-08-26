@@ -1,6 +1,6 @@
 # Changelog
 
-What each version changed, written for somebody who runs GitLanes rather than builds it. Why a
+What each version changed, written for somebody who runs Git Lanes rather than builds it. Why a
 change was made is in the commit that made it.
 
 A version number here, the tag that releases it and the number the bar prints are one number: the
@@ -11,6 +11,16 @@ Nothing here promises what the next version holds, and nothing under `1.0.0` pro
 still.
 
 ## Unreleased
+
+- **The name takes a space: Git Lanes.** What changed is what you read, in the window's title, in
+  the bar and in the installer. What did not is where your things are kept: the commands, the
+  trunks, the line that opens a diff and the list of repositories you have opened all stay in
+  `%APPDATA%\gitlanes\`, and so do your settings and the widths you dragged, so this version finds
+  everything the last one left.
+
+  It does land beside the old one rather than over it, since the installer is named after the
+  product and so is the folder it installs into. Uninstall `GitLanes` once and nothing of yours
+  goes with it.
 
 - **`merged` is said once on a row.** Two branches left on the same commit, which is what a pair
   of topic branches becomes once both have landed, each printed the word for themselves: the row

@@ -66,7 +66,7 @@ export default function App() {
 
   useEffect(() => { document.documentElement.dataset.theme = settings.theme }, [settings.theme])
   useEffect(() => { if (current) localStorage.setItem('repo', current) }, [current])
-  useEffect(() => { document.title = graph ? `${graph.repo} . GitLanes` : 'GitLanes' }, [graph])
+  useEffect(() => { document.title = graph ? `${graph.repo} . Git Lanes` : 'Git Lanes' }, [graph])
 
   const beat = graph?.fingerprint
   // the branch a project sits on is read with the list, so it goes stale unless
@@ -211,7 +211,7 @@ export default function App() {
       <header className="bar" {...dragProps}>
         <SettingsMenu settings={settings} onChange={change} />
         {/* the tool, not the repository: which one is open is what the tree says */}
-        <span className="title">GitLanes{version && ` ${version}`}</span>
+        <span className="title">Git Lanes{version && ` ${version}`}</span>
         <span className="spacer" />
         {/* nothing to say while it works: only a failure is worth a line in the bar */}
         {error && <span className="status bad">{error}</span>}

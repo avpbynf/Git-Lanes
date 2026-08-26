@@ -1,7 +1,27 @@
-# Working on GitLanes
+# Working on Git Lanes
 
 The README says what this tool is and how to run it. This file says how it is built, what
 holds it together, and what has already cost time here. Nothing below repeats the README.
+
+## Two names, and only one of them moved
+
+**What a person reads is `Git Lanes`, with a space. What a machine reads is `gitlanes`, without
+one.** The first is the product name, the window's title, the page's title and the word in the
+bar. The second is everything a rename would break rather than improve, and it is deliberately
+untouched:
+
+- `identifier` in `tauri.conf.json`, which is what names the webview's own folder. Change it and
+  every setting, every panel width and every remembered scope is left behind in a folder nothing
+  reads any more.
+- `%APPDATA%\gitlanes\`, which holds `actions.json` and `repos.json`. Change it and a project's
+  commands, its trunks, the line that opens a diff and the list of opened repositories are all
+  orphaned at once, silently, on somebody who only wanted the new version.
+- The crate, the Python file, the launcher, `gitlanes-web`, and the temporary folders a run and a
+  diff are given. Names in code, which do not take spaces and gain nothing by changing.
+
+The one thing the rename does cost is unavoidable: the installer is named after the product and
+so is the folder it installs into, so a version under the new name lands beside the old one
+rather than over it. The old one is uninstalled by hand, once.
 
 ## The shape of it
 
