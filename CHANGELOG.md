@@ -15,7 +15,8 @@ still.
 - **A file in the panel opens its diff where you read diffs.** Both sides of it are written out
   under the name they carry in the repository, and handed to a line you write once in the same
   file the commands live in: `zed --diff`, `code --diff`, whatever takes two files. Nothing is
-  chosen for you, and until that line is written no file is clickable. On the row of uncommitted
+  chosen for you, and until that line is written no file is clickable. A line naming something
+  the machine does not have is said out loud rather than swallowed. On the row of uncommitted
   work the right-hand side is the file itself, so what you read is what you can fix.
 
 - **What a command writes no longer pushes the commit out of the way.** The output was between

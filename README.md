@@ -170,7 +170,9 @@ own with the name they carry in the repository, so your editor colours them as w
 Anything that takes two files works, which is the reason nothing is chosen for you:
 `code --diff "{old}" "{new}"` for VS Code, `idea diff "{old}" "{new}"` for IntelliJ. Write no line
 and no file is clickable, since a row that lights up under the pointer and then opens nothing is
-worse than a row that never offered.
+worse than a row that never offered. Write a line naming something this machine does not have and
+the panel says so, in the place a command's own trouble is said: the shell starts whatever the
+line names, and what it says when it cannot find it is worth reading rather than swallowing.
 
 On the row of uncommitted work the left side is HEAD and the right side is the file itself rather
 than a copy, so what you are reading is what you can fix.
