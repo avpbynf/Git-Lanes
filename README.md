@@ -2,7 +2,7 @@
   <img src="src-tauri/icons/source.png" width="128" alt="">
 </p>
 
-<h1 align="center">GitLanes</h1>
+<h1 align="center">Git Lanes</h1>
 
 <p align="center">
   The commit graph of a local repository, in a window of its own.
@@ -10,7 +10,7 @@
 
 ---
 
-Reading where a branch stands should not cost opening an IDE. GitLanes draws a history the way
+Reading where a branch stands should not cost opening an IDE. Git Lanes draws a history the way
 IntelliJ draws it: one column per branch, an elbow where a branch opens and where it merges,
 dates down the left margin, and branch and tag labels on the commits that carry them.
 
@@ -39,8 +39,8 @@ in the folder it is reading.
 
 ## Quick start
 
-Windows: take `GitLanes_<version>_x64-setup.exe` from the
-[releases](https://github.com/avpbynf/gitlanes/releases), run it, and open the window it installs.
+Windows: take `Git Lanes_<version>_x64-setup.exe` from the
+[releases](https://github.com/avpbynf/Git-Lanes/releases), run it, and open the window it installs.
 It carries what it needs: the window reads git in Rust, so nothing has to be installed beside git
 itself.
 

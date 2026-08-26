@@ -243,5 +243,5 @@ fn main() {
             open_diff
         ])
         .run(tauri::generate_context!())
-        .expect("GitLanes could not start its window");
+        .expect("Git Lanes could not start its window");
 }
