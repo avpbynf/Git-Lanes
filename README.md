@@ -55,14 +55,18 @@ The commit being read is ringed, the arrows walk from one commit to the next, an
 its message and the files it touched.
 
 **The columns are named in a strip above the rows**, and the line between two of them drags: the
-dates on the left, the author and the date on the right take whatever width you give them, and the
-subject keeps what is left. Two of those are measured on what is loaded rather than guessed, and a
-grip let go of twice hands that measurement back.
+dates on the left, the drawing itself, the author and the date on the right take whatever width
+you give them, and the subject keeps what is left. Two of those are measured on what is loaded
+rather than guessed, and a grip let go of twice hands that measurement back.
+
+**A drawing wider than the room it was given scrolls inside it**, from the strip above it, and
+nothing else moves: a history a hundred branches wide used to push the author and the date off
+the side, so reading a name meant scrolling right and losing the graph to do it.
 
 **The path a commit came by** lights while the rest of the wires step back: down its first
 parents to the root, crossing the elbow where its branch left the trunk, and up the line that
-carried on from it. The menu says when, since it is a matter of taste: under the pointer, which
-is how it starts, on a click, which holds it still until another one is clicked, or never.
+carried on from it. The menu says when, since it is a matter of taste: on a click, which is how it starts and holds
+it still until another commit is clicked, under the pointer, or never at all.
 
 **The tree, on the left.** The projects, then the local branches, the remote ones and the tags,
 each name filed under the folders it already spells, so `feat/custom-images` sits under `feat`. A

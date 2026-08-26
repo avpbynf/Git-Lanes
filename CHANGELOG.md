@@ -12,6 +12,15 @@ still.
 
 ## Unreleased
 
+- **The drawing has a column of its own, and scrolls inside it.** A history wide enough pushed the
+  author and the date off the side, and reading a name meant scrolling right and losing the graph
+  to do it. The drawing now takes the room its column is given, scrolls sideways from the strip
+  above it when it needs more, and the rows beside it hold still.
+
+- **The path a commit came by is lit on a click rather than under the pointer**, which is what it
+  should have been: a graph that recolours itself as the pointer crosses it is a graph nobody
+  asked to move. The other two ways are still in the menu.
+
 - **A project says which branches its work lands on.** `merged` was measured against `dev`,
   `main`, `master` and `trunk`, and a repository whose trunk is called anything else was told
   nothing, silently. Those four are still what happens by default, and a project that says
