@@ -302,8 +302,9 @@ fn shallow_of(repo: &str) -> std::collections::HashSet<String> {
         .unwrap_or_default()
 }
 
-/// The names a branch is measured against. Anything else is a topic branch, and a topic branch
-/// is what can be finished with rather than what work is aimed at.
+/// The names a branch is measured against when a project says nothing of its own. Anything else
+/// is a topic branch, and a topic branch is what can be finished with rather than what work is
+/// aimed at.
 const TRUNKS: [&str; 4] = ["dev", "main", "master", "trunk"];
 /// How far back a replay is looked for on the trunk side. What normally bounds it is where the
 /// oldest branch left the trunk, tens of commits; this is for the branch abandoned a year ago,
@@ -386,6 +387,10 @@ pub fn already_in_trunk(repo: &str) -> InTrunk {
         repo,
         &["for-each-ref", "--format=%(refname:short) %(objectname)", "refs/heads"],
     );
+    // the trunks are part of the question, so a name added to them is asked again rather than
+    // answered out of what was worked out under the old list
+    let named = crate::actions::trunks_for(repo);
+    let listing = format!("{listing}\n{}", named.join(" "));
     let held = IN_TRUNK.get_or_init(|| Mutex::new(HashMap::new()));
     if let Ok(cache) = held.lock() {
         if let Some((key, answer)) = cache.get(repo) {
@@ -403,18 +408,24 @@ pub fn already_in_trunk(repo: &str) -> InTrunk {
         }
     }
 
-    let answer = read_in_trunk(repo, &tips);
+    let answer = read_in_trunk(repo, &tips, &named);
     if let Ok(mut cache) = held.lock() {
         cache.insert(repo.to_string(), (listing, answer.clone()));
     }
     answer
 }
 
-fn read_in_trunk(repo: &str, tips: &[(String, String)]) -> InTrunk {
+fn read_in_trunk(repo: &str, tips: &[(String, String)], named: &[String]) -> InTrunk {
     let mut merged: HashSet<String> = HashSet::new();
     let mut twins: HashMap<String, String> = HashMap::new();
 
-    let is_trunk = |name: &String| TRUNKS.contains(&name.as_str());
+    let is_trunk = |name: &String| {
+        if named.is_empty() {
+            TRUNKS.contains(&name.as_str())
+        } else {
+            named.iter().any(|held| held == name)
+        }
+    };
     let trunk_tips: Vec<&str> =
         tips.iter().filter(|(n, _)| is_trunk(n)).map(|(_, h)| h.as_str()).collect();
     let topics: Vec<&(String, String)> = tips.iter().filter(|(n, _)| !is_trunk(n)).collect();

@@ -66,21 +66,53 @@ pub fn actions_file() -> PathBuf {
     base.join("gitlanes").join("actions.json")
 }
 
-/// The file is a repository path to a list of commands, and paths are matched the way Windows
-/// matches them, which is without regard to case.
-fn all_actions() -> HashMap<String, Vec<Action>> {
+/// What one project holds in that file: the commands it can be asked to run, and the branches
+/// its work lands on.
+///
+/// A list is what the file held when commands were all there was to write, and it is still read
+/// as one, so a file written before any of this is not a file to rewrite.
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum Held {
+    Commands(Vec<Action>),
+    Project {
+        #[serde(default)]
+        actions: Vec<Action>,
+        #[serde(default)]
+        trunks: Vec<String>,
+    },
+}
+
+/// The file is a repository path to what that project holds, and paths are matched the way
+/// Windows matches them, which is without regard to case.
+fn all_projects() -> HashMap<String, Held> {
     let Ok(text) = std::fs::read_to_string(actions_file()) else { return HashMap::new() };
-    serde_json::from_str::<HashMap<String, Vec<Action>>>(&text).unwrap_or_default()
+    serde_json::from_str::<HashMap<String, Held>>(&text).unwrap_or_default()
+}
+
+fn held_for(repo: &str) -> Option<Held> {
+    let wanted = repo.to_lowercase().replace('/', "\\");
+    all_projects()
+        .into_iter()
+        .find(|(path, _)| path.to_lowercase().replace('/', "\\") == wanted)
+        .map(|(_, held)| held)
 }
 
 pub fn actions_for(repo: &str) -> Vec<Action> {
-    let wanted = repo.to_lowercase().replace('/', "\\");
-    for (path, held) in all_actions() {
-        if path.to_lowercase().replace('/', "\\") == wanted {
-            return held;
-        }
+    match held_for(repo) {
+        Some(Held::Commands(actions)) => actions,
+        Some(Held::Project { actions, .. }) => actions,
+        None => Vec::new(),
     }
-    Vec::new()
+}
+
+/// The branches this project's work lands on, as its own entry says. Empty when it says nothing,
+/// which is what leaves the usual four in place.
+pub fn trunks_for(repo: &str) -> Vec<String> {
+    match held_for(repo) {
+        Some(Held::Project { trunks, .. }) => trunks.into_iter().filter(|name| !name.is_empty()).collect(),
+        _ => Vec::new(),
+    }
 }
 
 /// The file, made to be edited rather than described: the first open writes an example for this
