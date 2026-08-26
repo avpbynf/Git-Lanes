@@ -10,7 +10,7 @@ than publishing an installer named after one thing and built from another.
 Nothing here promises what the next version holds, and nothing under `1.0.0` promises to hold
 still.
 
-## Unreleased
+## 0.4.0
 
 - **The name takes a space: Git Lanes.** What changed is what you read, in the window's title, in
   the bar and in the installer. What did not is where your things are kept: the commands, the
