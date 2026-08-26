@@ -8,6 +8,13 @@
   The commit graph of a local repository, in a window of its own.
 </p>
 
+<p align="center">
+  <img src="docs/the-window.png" width="900"
+       alt="The window: projects and branches down the left, the graph in the middle with branch
+            and tag labels on the commits that carry them, and one commit open on the right with
+            its files and the commands this project can run on it.">
+</p>
+
 ---
 
 Reading where a branch stands should not cost opening an IDE. Git Lanes draws a history the way
