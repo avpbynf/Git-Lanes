@@ -18,8 +18,12 @@ interface Running {
  *
  * The listening is set up once and not per run: the events come from the window itself, and a
  * page that subscribed on every click would end up with as many listeners as clicks.
+ *
+ * `beat` is the repository's fingerprint, which carries the stamp of the file the commands are
+ * written in. Reading them again whenever it moves is what puts an edit on screen: the file is
+ * opened in whatever the system opens JSON with, and nothing else here would ever hear it saved.
  */
-export function useActions(repo: string | null) {
+export function useActions(repo: string | null, beat: string | undefined) {
   const [actions, setActions] = useState<Action[]>([])
   /** Why there are none, when the reason is not simply that none are written. */
   const [trouble, setTrouble] = useState<string | null>(null)
@@ -49,7 +53,7 @@ export function useActions(repo: string | null) {
     return () => {
       live = false
     }
-  }, [repo])
+  }, [repo, beat])
 
   useEffect(() => {
     let stop: (() => void) | null = null
