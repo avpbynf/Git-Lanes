@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { Commit, Edge, Graph } from '../api'
+import type { TrailMode } from '../settings'
 import {
   DOT, ROW, ago, colorOf, dayLabel, edgePath, edgeSpan, graphWidth, laneX, rowY, tint, type Theme,
 } from '../lanes'
@@ -54,59 +55,84 @@ function roomFor(values: string[], share: number): number {
   return Math.ceil(widths[Math.min(widths.length - 1, Math.floor(widths.length * share))])
 }
 
-/** Which rows an edge leaves and which it lands on, so a lane can be walked. */
+/** What it takes to walk a graph: the edges by end, the row of a hash, and who came from whom. */
 interface Links {
   out: Map<number, Edge[]>
   into: Map<number, Edge[]>
+  /** The row a hash sits on, so a parent named in a commit can be followed to it. */
+  rowOf: Map<string, number>
+  /** The rows whose first parent is this one, which is the line carrying on upwards. */
+  born: Map<number, number[]>
 }
 
 function linksOf(graph: Graph): Links {
   const out = new Map<number, Edge[]>()
   const into = new Map<number, Edge[]>()
-  const add = (map: Map<number, Edge[]>, row: number, edge: Edge) => {
-    const held = map.get(row)
-    if (held) held.push(edge)
-    else map.set(row, [edge])
+  const rowOf = new Map<string, number>()
+  const born = new Map<number, number[]>()
+  const add = <T,>(map: Map<number, T[]>, row: number, held: T) => {
+    const there = map.get(row)
+    if (there) there.push(held)
+    else map.set(row, [held])
   }
+
   for (const edge of graph.edges) {
     add(out, edge.fr, edge)
     if (edge.tr !== null) add(into, edge.tr, edge)
   }
-  return { out, into }
+  graph.commits.forEach((commit, row) => rowOf.set(commit.h, row))
+  graph.commits.forEach((commit, row) => {
+    const first = commit.p[0] === undefined ? undefined : rowOf.get(commit.p[0])
+    if (first !== undefined) add(born, first, row)
+  })
+
+  return { out, into, rowOf, born }
 }
 
 /**
- * The run of lane a row sits in: the edges above and below it that never leave
- * that lane, the elbow at either end included.
+ * The path a commit came by: down its first parents to the root, and up the line that carried on
+ * from it.
  *
- * Walked rather than matched on the lane or on the colour, because neither
- * answers: a lane freed and taken again by another branch is a second run in
- * the same column, and colours are reused the same way.
+ * Walked along the parent links and not along the lane, which is what a lane cannot answer. A
+ * branch of one commit sits alone in its own lane, and lighting that lane lit one segment and
+ * stopped at the elbow, exactly where the interesting part starts. The path crosses the elbow
+ * and carries on down whatever lane the history took.
+ *
+ * Upwards it follows the commits this one is the first parent of. Where there are several, the
+ * one sharing this lane is the line carrying on, and the others are branches leaving it.
  */
-function runOf(graph: Graph, links: Links, row: number): Set<Edge> {
-  const run = new Set<Edge>()
-  const lane = graph.commits[row]?.lane
-  if (lane === undefined) return run
+function pathOf(graph: Graph, links: Links, row: number): Set<Edge> {
+  const path = new Set<Edge>()
+  const between = (from: number, to: number) =>
+    links.out.get(from)?.find((edge) => edge.tr === to)
 
   let at = row
   for (;;) {
-    const down = links.out.get(at)?.find((edge) => edge.rl === lane && edge.fl === lane)
-    if (!down || run.has(down)) break
-    run.add(down)
-    if (down.tr === null || graph.commits[down.tr]?.lane !== lane) break
-    at = down.tr
+    const first = graph.commits[at]?.p[0]
+    const next = first === undefined ? undefined : links.rowOf.get(first)
+    if (next === undefined) break
+    const edge = between(at, next)
+    if (!edge || path.has(edge)) break
+    path.add(edge)
+    at = next
   }
 
   at = row
   for (;;) {
-    const up = links.into.get(at)?.find((edge) => edge.rl === lane && edge.tl === lane)
-    if (!up || run.has(up)) break
-    run.add(up)
-    if (graph.commits[up.fr]?.lane !== lane) break
-    at = up.fr
+    const held = links.born.get(at)
+    if (!held?.length) break
+    const lane = graph.commits[at]?.lane
+    const next =
+      held.find((one) => graph.commits[one]?.lane === lane) ??
+      (held.length === 1 ? held[0] : undefined)
+    if (next === undefined) break
+    const edge = between(next, at)
+    if (!edge || path.has(edge)) break
+    path.add(edge)
+    at = next
   }
 
-  return run
+  return path
 }
 
 interface Props {
@@ -117,12 +143,16 @@ interface Props {
   /** Whether git was asked to leave commits out, which changes what nothing means. */
   narrowed: boolean
   selected: string | null
+  /** When the path a commit came by is lit, which is a matter of taste and so a setting. */
+  trail: TrailMode
   /** `near` scrolls no further than it takes to show the row, rather than centring it. */
   jump: { h: string; n: number; near?: boolean } | null
   onSelect: (hash: string) => void
 }
 
-export function GraphView({ graph, theme, match, narrowed, selected, jump, onSelect }: Props) {
+export function GraphView({
+  graph, theme, match, narrowed, selected, trail, jump, onSelect,
+}: Props) {
   const scroller = useRef<HTMLDivElement>(null)
   const [scrollTop, setScrollTop] = useState(0)
   const [viewport, setViewport] = useState(800)
@@ -221,9 +251,17 @@ export function GraphView({ graph, theme, match, narrowed, selected, jump, onSel
   )
 
   const links = useMemo(() => linksOf(graph), [graph])
+
+  // under the pointer, or held on the commit last clicked, or nowhere at all
+  const walking = useMemo(() => {
+    if (trail === 'off') return null
+    if (trail === 'click') return selected === null ? null : links.rowOf.get(selected) ?? null
+    return hovered
+  }, [trail, selected, hovered, links])
+
   const run = useMemo(
-    () => (hovered === null ? null : runOf(graph, links, hovered)),
-    [graph, links, hovered],
+    () => (walking === null ? null : pathOf(graph, links, walking)),
+    [graph, links, walking],
   )
 
   const visible = graph.commits.slice(first, last)

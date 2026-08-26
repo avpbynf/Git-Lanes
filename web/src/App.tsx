@@ -250,6 +250,7 @@ export default function App() {
                   match={found.match}
                   narrowed={filtering(filters)}
                   selected={selected}
+                  trail={settings.trail}
                   jump={jump}
                   onSelect={choose}
                 />

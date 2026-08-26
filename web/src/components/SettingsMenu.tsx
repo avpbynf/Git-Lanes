@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Theme } from '../lanes'
-import type { BranchClick, PanelMode, Settings } from '../settings'
+import type { BranchClick, PanelMode, Settings, TrailMode } from '../settings'
 
 interface Props {
   settings: Settings
@@ -87,6 +87,13 @@ export function SettingsMenu({ settings, onChange }: Props) {
             value={settings.branchClick}
             options={[['reveal', 'goes to its tip'], ['filter', 'bounds the graph']]}
             onPick={(value) => onChange({ branchClick: value as BranchClick })}
+          />
+          <Choice
+            label="the path a commit came by"
+            hint="lit in the graph, the rest stepping back"
+            value={settings.trail}
+            options={[['hover', 'under the pointer'], ['click', 'on a click'], ['off', 'never']]}
+            onPick={(value) => onChange({ trail: value as TrailMode })}
           />
         </div>
       )}

@@ -6,6 +6,9 @@ export type BranchClick = 'reveal' | 'filter'
 /** Whether the commit panel is a column of its own, one a click opens, or nothing. */
 export type PanelMode = 'always' | 'onClick' | 'never'
 
+/** When the path a commit came by is lit: under the pointer, on a click, or never. */
+export type TrailMode = 'hover' | 'click' | 'off'
+
 export interface Settings {
   theme: Theme
   branchClick: BranchClick
@@ -19,6 +22,12 @@ export interface Settings {
    */
   showRefs: boolean
   panel: PanelMode
+  /**
+   * Lighting the path a commit came by dims everything else, which is the point and also the
+   * objection: it moves under the pointer whether or not anybody asked. So it is a choice, and
+   * the click is there for whoever wants the graph to hold still until they say otherwise.
+   */
+  trail: TrailMode
 }
 
 const KEY = 'settings'
@@ -29,6 +38,7 @@ const FALLBACK: Settings = {
   showRefs: true,
   // the graph keeps its whole width until a commit is actually asked for
   panel: 'onClick',
+  trail: 'hover',
 }
 
 /** A key the stored shape never had falls back, so an old blob never breaks a boot. */
