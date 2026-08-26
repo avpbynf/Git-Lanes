@@ -104,8 +104,13 @@ twice: a mod built and dropped into a test instance, an application bundled from
 script run against the state of one commit. So the tool holds none of that and runs yours instead.
 
 Commands live in `%APPDATA%\gitlanes\actions.json`, one list per repository, and the panel on the
-right shows them as buttons on whatever commit is open. `add an action` writes the file with an
-example in it and opens it.
+right shows them as buttons on whatever commit is open. The pencil in that panel's header opens
+that file, writing an example in it the first time.
+
+One of the two lines that example carries is an editor on the commit itself, which is the command
+every project wants and the one nothing here can write for you, since the tool knows no editor.
+Name yours in it. The folder it opens is the worktree made for that commit, and it goes when you
+close the editor.
 
 ```json
 {

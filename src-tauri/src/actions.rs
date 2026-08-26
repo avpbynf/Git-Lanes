@@ -172,13 +172,23 @@ pub fn open_actions(repo: &str) -> Result<String, String> {
         }
         let example: HashMap<String, Vec<Action>> = HashMap::from([(
             repo.to_string(),
-            vec![Action {
-                // what a project does to a version of itself, which is the only thing worth a
+            vec![
+                // an editor on the commit itself, which is the one command every project wants
+                // and the one nothing here can write for you: the tool knows no editor, and the
+                // folder this opens is the worktree made for that commit, gone when you close it
+                Action {
+                    name: "open this version (name your editor here)".to_string(),
+                    run: "zed .".to_string(),
+                    cwd: String::new(),
+                },
+                // what a project does to a version of itself, which is the other thing worth a
                 // button: what a commit touched is already in the panel this sits in
-                name: "build this version (edit me)".to_string(),
-                run: "gradlew.bat build".to_string(),
-                cwd: String::new(),
-            }],
+                Action {
+                    name: "build this version (edit me)".to_string(),
+                    run: "gradlew.bat build".to_string(),
+                    cwd: String::new(),
+                },
+            ],
         )]);
         let text = serde_json::to_string_pretty(&example).map_err(|err| err.to_string())?;
         std::fs::write(&file, text).map_err(|err| err.to_string())?;

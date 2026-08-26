@@ -10,6 +10,13 @@ than publishing an installer named after one thing and built from another.
 Nothing here promises what the next version holds, and nothing under `1.0.0` promises to hold
 still.
 
+## Unreleased
+
+- **The example written on the first open carries an editor.** Opening a commit in your own
+  editor is the command every project wants, and it is one line: the worktree the command runs in
+  is the commit itself, and it goes when you close the editor. Nothing here knows which editor is
+  yours, so the line names one for the shape and asks you to put yours in its place.
+
 ## 0.4.1
 
 - **The panel says why a file is not clickable**, under the list, instead of leaving you to
