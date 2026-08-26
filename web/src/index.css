@@ -7,8 +7,8 @@
      They meet at a corner, so they hold one height between them rather than
      each ending up wherever its own padding lands it */
   --strip: 35px;
-  /* the day label and nothing else, so it is as wide as `25 Aug 24` and no wider */
-  --gutter: 64px;
+  /* the day label and nothing else. What it is worth is in lanes.ts, since a hand can move it
+     and the width it lands on has to be remembered somewhere that is not a stylesheet */
   --bg: #1b1d22;
   --bg-alt: #212429;
   --panel: #23262c;
