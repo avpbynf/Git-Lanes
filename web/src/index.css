@@ -216,9 +216,12 @@ button:disabled { cursor: default; color: var(--faint); }
 
 /* what a project can be asked to do with a commit, and what it says while doing it */
 
+/* centred, because what a project does to a version of itself is a row of two or three buttons
+   in a column of its own: left-aligned they hang off one edge of a width nothing else uses */
 .doings {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 6px;
   margin: 10px 0;
 }
@@ -757,6 +760,14 @@ button:disabled { cursor: default; color: var(--faint); }
   text-overflow: ellipsis;
   direction: rtl;
   text-align: left;
+}
+
+/* what the panel would need before a row could be clicked, said quietly under the rows */
+.lack {
+  margin: 10px 0 0;
+  color: var(--faint);
+  font-size: 11px;
+  line-height: 1.5;
 }
 
 .file .n { flex: none; width: 78px; text-align: right; }
