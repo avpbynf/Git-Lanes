@@ -2,8 +2,10 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperti
 import type { Commit, Edge, Graph } from '../api'
 import type { TrailMode } from '../settings'
 import {
-  DOT, ROW, ago, colorOf, dayLabel, edgePath, edgeSpan, graphWidth, laneX, rowY, tint, type Theme,
+  DOT, GUTTER, HEAD, ROW, ago, colorOf, dayLabel, edgePath, edgeSpan, graphWidth, laneX, rowY,
+  tint, type Theme,
 } from '../lanes'
+import { useColumns } from '../columns'
 
 const OVERSCAN = 10
 
@@ -154,6 +156,7 @@ export function GraphView({
   graph, theme, match, narrowed, selected, trail, jump, onSelect,
 }: Props) {
   const scroller = useRef<HTMLDivElement>(null)
+  const columns = useColumns()
   const [scrollTop, setScrollTop] = useState(0)
   const [viewport, setViewport] = useState(800)
   // the row the pointer is on, which is what says which lane to follow
@@ -180,7 +183,7 @@ export function GraphView({
       return
     }
     const index = graph.commits.findIndex((commit) => commit.h === held.h)
-    element.scrollTop = index >= 0 ? index * ROW + held.delta : 0
+    element.scrollTop = index >= 0 ? index * ROW + HEAD + held.delta : 0
   }, [graph])
 
   /**
@@ -195,7 +198,7 @@ export function GraphView({
     const index = graph.commits.findIndex((commit) => commit.h === jump.h)
     if (index < 0) return
     jumped.current = jump.n
-    const top = index * ROW
+    const top = index * ROW + HEAD
     if (!jump.near) {
       element.scrollTop = Math.max(0, top - element.clientHeight / 2 + ROW / 2)
       return
@@ -213,15 +216,18 @@ export function GraphView({
     const element = scroller.current
     if (!element) return
     setScrollTop(element.scrollTop)
-    const row = Math.floor(element.scrollTop / ROW)
+    // the strip naming the columns sits above the rows, so what is scrolled past starts after it
+    const under = element.scrollTop - HEAD
+    const row = Math.max(0, Math.floor(under / ROW))
     const commit = graph.commits[row]
     anchor.current =
-      element.scrollTop < 4 || !commit ? null : { h: commit.h, delta: element.scrollTop - row * ROW }
+      element.scrollTop < 4 || !commit ? null : { h: commit.h, delta: under - row * ROW }
   }
 
   const count = graph.commits.length
-  const first = Math.max(0, Math.floor(scrollTop / ROW) - OVERSCAN)
-  const last = Math.min(count, Math.ceil((scrollTop + viewport) / ROW) + OVERSCAN)
+  const under = scrollTop - HEAD
+  const first = Math.max(0, Math.floor(under / ROW) - OVERSCAN)
+  const last = Math.min(count, Math.ceil((under + viewport) / ROW) + OVERSCAN)
   const windowTop = first * ROW
   const windowHeight = Math.max((last - first) * ROW, 0)
   const width = graphWidth(graph.lanes)
@@ -282,17 +288,42 @@ export function GraphView({
     )
   }
 
+  // measured on what is loaded, until a hand puts a column somewhere else and keeps it there
+  const gutter = columns.held.gutter ?? GUTTER
+  const who = columns.held.who ?? widths.who
+  const when = columns.held.when ?? widths.when
+
   return (
-    <div className="scroller" ref={scroller} onScroll={onScroll}>
-      <div
-        className="canvas"
-        style={{
-          height: count * ROW,
-          '--gw': `${width}px`,
-          '--who': `${widths.who}px`,
-          '--when': `${widths.when}px`,
-        } as CSSProperties}
-      >
+    <div
+      className="scroller"
+      ref={scroller}
+      onScroll={onScroll}
+      style={{
+        '--gw': `${width}px`,
+        '--gutter': `${gutter}px`,
+        '--who': `${who}px`,
+        '--when': `${when}px`,
+      } as CSSProperties}
+    >
+      {/* the columns are named where they are dragged from, and a grip let go of twice
+          gives the measurement back */}
+      <div className="head">
+        <div className="gut">
+          <span className="edge right" {...columns.grip('gutter', gutter, 1)} />
+        </div>
+        <div />
+        <div className="msg">commit</div>
+        <div className="who">
+          <span className="edge" {...columns.grip('who', who, -1)} />
+          author
+        </div>
+        <div className="when">
+          <span className="edge" {...columns.grip('when', when, -1)} />
+          when
+        </div>
+      </div>
+
+      <div className="canvas" style={{ height: count * ROW }}>
         <svg
           className="wires"
           width={width}

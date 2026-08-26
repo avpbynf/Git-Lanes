@@ -357,6 +357,47 @@ button:disabled { cursor: default; color: var(--faint); }
   position: relative;
   scrollbar-color: var(--line) transparent;
 }
+
+/* the columns, named where they are dragged from. It scrolls sideways with the rows, since a
+   graph wider than the window would otherwise leave its own headings behind */
+.head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  min-width: min-content;
+  display: grid;
+  grid-template-columns:
+    var(--gutter)
+    var(--gw, 90px)
+    minmax(0, 1fr)
+    calc(var(--who, 90px) + 32px)
+    calc(var(--when, 70px) + 18px);
+  height: 24px;
+  align-items: center;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  color: var(--faint);
+  font-size: 10.5px;
+}
+
+.head > * { position: relative; min-width: 0; overflow: hidden; }
+.head .msg { padding-left: 2px; }
+.head .who { padding-left: 22px; }
+.head .when { text-align: right; padding-right: 12px; }
+
+/* six pixels to catch, drawn as the line the columns are separated by anyway */
+.head .edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.head .edge.right { left: auto; right: -3px; }
+.head .edge:hover { background: var(--accent); opacity: 0.35; }
 .canvas { position: relative; min-width: min-content; }
 
 .wires {

@@ -1,6 +1,10 @@
 import type { Edge } from './api'
 
 export const ROW = 28
+/** The day label and nothing else, wide enough for `25 Aug 24`, until a hand says otherwise. */
+export const GUTTER = 64
+/** The strip naming the columns, which is also what they are dragged by. */
+export const HEAD = 24
 export const LANE = 16
 export const PADX = 12
 export const DOT = 3.6
