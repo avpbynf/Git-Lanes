@@ -94,8 +94,10 @@ pub fn open_actions(repo: &str) -> Result<String, String> {
         let example: HashMap<String, Vec<Action>> = HashMap::from([(
             repo.to_string(),
             vec![Action {
-                name: "an example, for the shape".to_string(),
-                run: "git -C {worktree} log -1 --stat".to_string(),
+                // what a project does to a version of itself, which is the only thing worth a
+                // button: what a commit touched is already in the panel this sits in
+                name: "build this version (edit me)".to_string(),
+                run: "gradlew.bat build".to_string(),
                 cwd: String::new(),
             }],
         )]);
@@ -115,20 +117,76 @@ pub fn open_actions(repo: &str) -> Result<String, String> {
     Ok(path)
 }
 
-fn shell(line: &str, cwd: &Path) -> std::io::Result<Child> {
-    let mut command;
+/// What runs the line, which decides how a path has to be spelled in it.
+enum Shell {
+    /// The one git brings with it, where && and quotes mean what they mean everywhere else.
+    Bash(PathBuf),
+    /// What is left when that one is not there.
+    Plain,
+}
+
+/// The bash git brings with it, and never whatever else answers to that name.
+///
+/// On Windows the PATH holds WSL's launcher under the same name, and a build started through it
+/// would run in another machine's file system entirely: same word, nothing else in common. Git's
+/// own sits beside the git this tool already runs, so it is found from there or not at all.
+fn shell_of(repo: &str) -> Shell {
+    if cfg!(windows) {
+        if let Ok(exec) = git::git(repo, &["--exec-path"]) {
+            // .../Git/mingw64/libexec/git-core, three above which is the install itself
+            let mut root = PathBuf::from(exec.trim());
+            for _ in 0..3 {
+                match root.parent() {
+                    Some(up) => root = up.to_path_buf(),
+                    None => return Shell::Plain,
+                }
+            }
+            let bash = root.join("bin").join("bash.exe");
+            if bash.exists() {
+                return Shell::Bash(bash);
+            }
+        }
+    }
+    Shell::Plain
+}
+
+/// C:\\Users\\x written the way that shell reads it, since a backslash there is an escape and
+/// eats the letter behind it.
+fn posix(path: &str) -> String {
+    let held = path.replace('\\', "/");
+    match held.as_bytes() {
+        [drive, b':', ..] => format!("/{}{}", (*drive as char).to_lowercase(), &held[2..]),
+        _ => held,
+    }
+}
+
+fn spawn(shell: &Shell, line: &str, cwd: &Path) -> std::io::Result<Child> {
+    let mut command = match shell {
+        Shell::Bash(bash) => {
+            let mut held = Command::new(bash);
+            held.args(["-c", line]);
+            held
+        }
+        Shell::Plain => {
+            #[cfg(windows)]
+            {
+                let mut held = Command::new("cmd");
+                held.args(["/c", line]);
+                held
+            }
+            #[cfg(not(windows))]
+            {
+                let mut held = Command::new("sh");
+                held.args(["-c", line]);
+                held
+            }
+        }
+    };
     #[cfg(windows)]
     {
-        command = Command::new("cmd");
-        command.args(["/c", line]);
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         command.creation_flags(CREATE_NO_WINDOW);
-    }
-    #[cfg(not(windows))]
-    {
-        command = Command::new("sh");
-        command.args(["-c", line]);
     }
     command.current_dir(cwd).stdout(Stdio::piped()).stderr(Stdio::piped()).stdin(Stdio::null());
     command.spawn()
@@ -183,10 +241,16 @@ pub fn start(
             return;
         }
 
+        // the paths are spelled the way the shell about to read them spells paths
+        let shell = shell_of(&repo);
+        let (there, home) = match shell {
+            Shell::Bash(_) => (posix(&worktree), posix(&repo)),
+            Shell::Plain => (worktree.clone(), repo.clone()),
+        };
         let line = action
             .run
-            .replace("{worktree}", &worktree)
-            .replace("{repo}", &repo)
+            .replace("{worktree}", &there)
+            .replace("{repo}", &home)
             .replace("{sha}", &sha)
             .replace("{short}", &short)
             .replace("{ref}", &refname);
@@ -198,7 +262,7 @@ pub fn start(
 
         say(&app, format!("{line}    (in {where_})"), false);
 
-        let child = match shell(&line, Path::new(&where_)) {
+        let child = match spawn(&shell, &line, Path::new(&where_)) {
             Ok(child) => child,
             Err(err) => {
                 let _ = git::git(&repo, &["worktree", "remove", "--force", &worktree]);
