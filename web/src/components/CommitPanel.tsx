@@ -4,7 +4,7 @@ import {
   type Commit, type CommitDetail, type WorkingDetail,
 } from '../api'
 import { useActions } from '../actions'
-import { MIN_WIDTH, usePanelWidth } from '../panel'
+import { MIN_WIDTH, usePanelWidth, WIDTH } from '../panel'
 import type { PanelMode } from '../settings'
 
 const CLOSE = (
@@ -13,7 +13,12 @@ const CLOSE = (
   </svg>
 )
 
-const WIDTH = 440
+/** Opens the file the commands are written in, which is the only way there is to add one. */
+const PENCIL = (
+  <svg viewBox="0 0 16 16" aria-hidden="true">
+    <path d="M2.5 13.5l1-3.5 7-7 2.5 2.5-7 7-3.5 1zM9.5 4l2.5 2.5" />
+  </svg>
+)
 
 /** How long a read may take before it is worth saying that it is running. */
 const PATIENCE = 250
@@ -91,16 +96,31 @@ export function CommitPanel({ repo, hash, known, beat, mode, onClose }: Props) {
   // asked for on a click, it is the click that brings it, and the cross that sends it away
   const shown = mode === 'always' || (mode === 'onClick' && Boolean(hash))
 
+  // the row of commands, which is now empty when a project has written none: what used to fill
+  // it in that case was the way in to the file, and the way in is the pencil in the header
+  const doable =
+    canRunActions &&
+    hash &&
+    !hash.startsWith(WORKING) &&
+    (doing.actions.length > 0 || doing.trouble || doing.running)
+
   return (
     <aside className={shown ? 'panel' : 'panel gone'} style={{ width }}>
       <div className="grip" {...grip} />
       <header>
         <span className="strong">{hash?.startsWith(WORKING) ? 'worktree' : 'commit'}</span>
+        <span className="spacer" />
+        {canRunActions && (
+          <button
+            className="icon"
+            title={doing.actions.length ? 'edit the actions' : 'add an action'}
+            onClick={() => void doing.edit()}
+          >
+            {PENCIL}
+          </button>
+        )}
         {mode === 'onClick' && (
-          <>
-            <span className="spacer" />
-            <button className="icon" title="close" onClick={onClose}>{CLOSE}</button>
-          </>
+          <button className="icon" title="close" onClick={onClose}>{CLOSE}</button>
         )}
       </header>
       <div className={waiting ? 'panel-body waiting' : 'panel-body'}>
@@ -108,7 +128,7 @@ export function CommitPanel({ repo, hash, known, beat, mode, onClose }: Props) {
         {held?.error && <p className="empty">{held.error}</p>}
         {title && <h2>{title}</h2>}
         {waiting && !held && <p className="empty">reading...</p>}
-        {canRunActions && hash && !hash.startsWith(WORKING) && (
+        {doable && (
           <div className="doings">
             {doing.actions.map((action, index) => (
               <button
@@ -127,9 +147,6 @@ export function CommitPanel({ repo, hash, known, beat, mode, onClose }: Props) {
                 {action.name}
               </button>
             ))}
-            <button className="quiet" onClick={() => void doing.edit()}>
-              {doing.actions.length ? 'edit' : 'add an action'}
-            </button>
             {doing.trouble && <span className="trouble">{doing.trouble}</span>}
             {doing.running && (
               <button className="quiet" onClick={() => void doing.stop()}>stop</button>

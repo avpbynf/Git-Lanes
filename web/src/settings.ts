@@ -36,8 +36,9 @@ const FALLBACK: Settings = {
   theme: matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark',
   branchClick: 'reveal',
   showRefs: true,
-  // the graph keeps its whole width until a commit is actually asked for
-  panel: 'onClick',
+  // a column, like the other side: what a commit holds is read next to the graph rather than
+  // fetched from it, and the mode a click opens is there for whoever wants the width back
+  panel: 'always',
   // a graph that recolours itself under a pointer crossing it is a graph nobody asked to move
   trail: 'click',
 }
