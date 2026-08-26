@@ -23,6 +23,8 @@ interface Props {
   hash: string | null
   /** What the graph already knows of the commit, so the panel answers the click at once. */
   known: Commit | null
+  /** The repository's fingerprint, which is also what says the file of commands was saved. */
+  beat: string | undefined
   mode: PanelMode
   onClose: () => void
 }
@@ -35,11 +37,11 @@ interface Answer {
   error?: string
 }
 
-export function CommitPanel({ repo, hash, known, mode, onClose }: Props) {
+export function CommitPanel({ repo, hash, known, beat, mode, onClose }: Props) {
   const [answer, setAnswer] = useState<Answer | null>(null)
   const [slowFor, setSlowFor] = useState<string | null>(null)
   const { width, grip } = usePanelWidth('panel', WIDTH, MIN_WIDTH, 'right')
-  const doing = useActions(repo)
+  const doing = useActions(repo, beat)
   const tail = useRef<HTMLDivElement>(null)
 
   // a build says a lot and what is being waited for is the last line of it

@@ -68,9 +68,9 @@ export default function App() {
   useEffect(() => { if (current) localStorage.setItem('repo', current) }, [current])
   useEffect(() => { document.title = graph ? `${graph.repo} . GitLanes` : 'GitLanes' }, [graph])
 
+  const beat = graph?.fingerprint
   // the branch a project sits on is read with the list, so it goes stale unless
   // the list is read again when the repository being watched moves
-  const beat = graph?.fingerprint
   // the state lands after the fetch resolves, never synchronously here
   // oxlint-disable-next-line react/set-state-in-effect
   useEffect(() => { if (beat) void refreshRepos() }, [beat, refreshRepos])
@@ -271,6 +271,7 @@ export default function App() {
               repo={current}
               hash={selected}
               known={chosen}
+              beat={beat}
               mode={settings.panel}
               onClose={() => setSelected(null)}
             />
