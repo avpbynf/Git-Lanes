@@ -102,9 +102,37 @@ def shallow_of(repo):
         return set()
 
 
-# The names a branch is measured against. Anything else is a topic branch, and a topic branch is
-# what can be finished with rather than what work is aimed at.
+# The names a branch is measured against when a project says nothing. Anything else is a topic
+# branch, and a topic branch is what can be finished with rather than what work is aimed at.
 TRUNKS = ("dev", "main", "master", "trunk")
+
+
+def project_file():
+    """What is particular to a project: the branches its work lands on, and its own commands."""
+    base = os.environ.get("APPDATA") or os.path.expanduser("~/.config")
+    return os.path.join(base, "gitlanes", "actions.json")
+
+
+def trunks_of(repo):
+    """The branches this project's work lands on, as its own entry says, or the usual four.
+
+    The entry is a list of commands, as it has been since there were only commands to write, or
+    an object with `trunks` in it. Both are read, so a file written before this existed is not a
+    file to rewrite.
+    """
+    try:
+        with open(project_file(), encoding="utf-8") as handle:
+            held = json.load(handle)
+    except (OSError, ValueError):
+        return TRUNKS
+
+    wanted = os.path.normcase(os.path.normpath(repo))
+    for path, entry in held.items():
+        if os.path.normcase(os.path.normpath(path)) != wanted:
+            continue
+        named = entry.get("trunks") if isinstance(entry, dict) else None
+        return tuple(name for name in named if name) if named else TRUNKS
+    return TRUNKS
 # How far back a replay is looked for on the trunk side. What normally bounds it is where the
 # oldest branch left the trunk, tens of commits; this is for the branch abandoned a year ago,
 # whose diffs would otherwise be seconds of work.
@@ -160,15 +188,18 @@ def already_in_trunk(repo):
     rows = [line.split() for line in
             git(repo, "for-each-ref", "--format=%(refname:short) %(objectname)",
                 "refs/heads").splitlines() if line.strip()]
-    key = tuple(tuple(row) for row in rows)
+    # the trunks are part of the question, so a name added to them answers again rather than
+    # handing back what was worked out under the old list
+    key = (tuple(tuple(row) for row in rows), trunks_of(repo))
     held = _in_trunk.get(repo)
     if held and held[0] == key:
         return held[1]
 
     answer = (set(), {})
+    named = trunks_of(repo)
     tips = {row[0]: row[1] for row in rows if len(row) == 2}
-    trunks = [name for name in tips if name in TRUNKS]
-    topics = [name for name in tips if name not in TRUNKS]
+    trunks = [name for name in tips if name in named]
+    topics = [name for name in tips if name not in named]
     if trunks and topics:
         answer = read_in_trunk(repo, tips, trunks, topics)
     _in_trunk[repo] = (key, answer)
