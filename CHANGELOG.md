@@ -10,7 +10,7 @@ than publishing an installer named after one thing and built from another.
 Nothing here promises what the next version holds, and nothing under `1.0.0` promises to hold
 still.
 
-## Unreleased
+## 0.4.2
 
 - **The example written on the first open carries an editor.** Opening a commit in your own
   editor is the command every project wants, and it is one line: the worktree the command runs in
