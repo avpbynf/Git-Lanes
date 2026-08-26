@@ -16,6 +16,10 @@ import { Sidebar } from './components/Sidebar'
 import { WindowControls } from './components/WindowControls'
 import { dragProps } from './window'
 
+/** Windows tells no case from another, and the two ends of this spell paths as they please. */
+const samePath = (left: string | null, right: string | null) =>
+  Boolean(left) && left?.toLowerCase().replace(/\//g, '\\') === right?.toLowerCase().replace(/\//g, '\\')
+
 export default function App() {
   const [repos, setRepos] = useState<RepoEntry[]>([])
   const [current, setCurrent] = useState<string | null>(() => localStorage.getItem('repo'))
@@ -41,7 +45,14 @@ export default function App() {
       const listed = await fetchRepos()
       setRepos(listed.repos)
       setVersion(listed.version)
-      setCurrent((held) => held ?? listed.default ?? listed.repos[0]?.path ?? null)
+      // What was read last is remembered by the browser and the list of projects by the backend,
+      // and the two can disagree: a project forgotten in one window is still named in another's
+      // storage, and the graph would then show a repository no row in the tree can reach. The
+      // list is what decides.
+      setCurrent((held) => {
+        const known = listed.repos.some((repo) => samePath(repo.path, held))
+        return known ? held : listed.default ?? listed.repos[0]?.path ?? null
+      })
     } catch {
       // a backend that is not answering is reported by the graph itself
     }
