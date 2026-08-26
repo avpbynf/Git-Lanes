@@ -747,6 +747,11 @@ button:disabled { cursor: default; color: var(--faint); }
   padding: 1px 0;
 }
 
+/* only where a line is written to open one: a row that lights up and answers nothing is worse
+   than a row that never offered */
+.file.open { cursor: pointer; }
+.file.open:hover { background: var(--hover); }
+
 .file .p {
   overflow: hidden;
   text-overflow: ellipsis;

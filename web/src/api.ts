@@ -252,6 +252,22 @@ export const stopAction = () =>
 export const editActions = (repo: string | null) =>
   desktop ? (desktop('edit_actions', { repo }) as Promise<string>) : Promise.resolve('')
 
+/**
+ * Whether the user's own file says what opens a diff.
+ *
+ * It is asked rather than assumed, and asked again whenever that file is saved, because nothing
+ * is written there to begin with: a row made to look clickable before there is anything to open
+ * is a row that answers a click with nothing.
+ */
+export const fetchDiffReady = () =>
+  desktop ? (desktop('diff_ready') as Promise<boolean>) : Promise.resolve(false)
+
+/** `folder` names a worktree rather than a commit, and empty means a commit. */
+export const openDiff = (repo: string | null, sha: string, path: string, folder: string) =>
+  desktop
+    ? (desktop('open_diff', { repo, sha, path, folder }) as Promise<void>)
+    : Promise.reject(new Error('a diff opens from the window, not from a page'))
+
 type Unlisten = () => void
 type Listen = (name: string, handler: (event: { payload: unknown }) => void) => Promise<Unlisten>
 
