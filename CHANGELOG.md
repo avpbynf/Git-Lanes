@@ -10,7 +10,7 @@ than publishing an installer named after one thing and built from another.
 Nothing here promises what the next version holds, and nothing under `1.0.0` promises to hold
 still.
 
-## Unreleased
+## 0.2.0
 
 - **The drawing has a column of its own, and scrolls inside it.** A history wide enough pushed the
   author and the date off the side, and reading a name meant scrolling right and losing the graph
