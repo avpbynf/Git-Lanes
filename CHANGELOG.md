@@ -10,6 +10,16 @@ than publishing an installer named after one thing and built from another.
 Nothing here promises what the next version holds, and nothing under `1.0.0` promises to hold
 still.
 
+## Unreleased
+
+- **The commit panel is a column from the first open**, at the width the other side opens at,
+  rather than something a click has to fetch. The mode a click opens is still in the menu for
+  whoever wants the graph to have the whole window, and so is turning the panel off.
+
+- **The way into the file of actions is a pencil in the panel's header**, beside the cross, rather
+  than a button among the commands themselves. It is there whether a project has written commands
+  or not, which is what it was for in the first place.
+
 ## 0.2.1
 
 - **Saving the file of actions is enough for the list to hold them.** A command added or renamed

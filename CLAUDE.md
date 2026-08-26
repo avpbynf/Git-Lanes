@@ -119,11 +119,13 @@ tag as a starting point exactly as it reads a branch, so nothing distinguishes t
 long spelling is also what tells a tag `dev` from a branch `dev`, and what keeps a ref named
 like an option from being read as one. A scope that does not spell `refs/...` is no scope.
 
-**The two side panels are the same thing mirrored.** Both are columns, both are dragged by their
-inner edge through `usePanelWidth`, both are turned off in the menu. What the menu holds is what
-someone decides once; what a panel header holds is what someone decides while looking at it. The
-commit panel has a third state, opened by a click and closed by its cross, and that is the one
-the window starts on.
+**The two side panels are the same thing mirrored.** Both are columns, both open at `WIDTH` and
+stop at `MIN_WIDTH`, both are dragged by their inner edge through `usePanelWidth`, both are turned
+off in the menu. Those two numbers live in `panel.ts` and are one number each on purpose: two
+columns that opened at different widths read as two different kinds of thing. What the menu holds
+is what someone decides once; what a panel header holds is what someone decides while looking at
+it. The commit panel has a third state, gone until a click and closed by its cross, which is a
+choice in the menu rather than where the window starts.
 
 ## Traps already paid for
 
