@@ -339,10 +339,37 @@ pub fn open_diff(repo: &str, sha: &str, path: &str, folder: &str) -> Result<(), 
         .replace("{sha}", sha)
         .replace("{repo}", &spell(repo));
 
+    // what it says goes to a file rather than to a pipe: an editor stays open, and a pipe nobody
+    // is left to read fills up and stops the very editor this went to the trouble of starting
+    let said = root.join("said.txt");
     let where_ = if working { folder } else { repo };
     let mut command = shell_command(&shell, &line, Path::new(where_));
-    command.stdout(Stdio::null()).stderr(Stdio::null());
-    command.spawn().map_err(|err| format!("the diff could not be opened: {err}"))?;
+    command.stdout(Stdio::null());
+    if let Ok(sink) = std::fs::File::create(&said) {
+        command.stderr(Stdio::from(sink));
+    }
+    let mut child =
+        command.spawn().map_err(|err| format!("the diff could not be opened: {err}"))?;
+
+    // the shell starts whatever the line names, so a line naming something nobody has still
+    // spawns: what it does about it is exit at once, which is the only thing to watch for. An
+    // editor that opened is still there a moment later; a word the shell could not find is gone.
+    //
+    // A second and a half because that shell is itself slow to start on Windows: measured here,
+    // a line naming nothing took a full second to come back and say so, and a wait shorter than
+    // its own startup would call every failure a success.
+    std::thread::sleep(std::time::Duration::from_millis(1500));
+    if let Ok(Some(status)) = child.try_wait() {
+        if !status.success() {
+            let told = std::fs::read_to_string(&said).unwrap_or_default();
+            let told = told.lines().find(|line| !line.trim().is_empty()).unwrap_or("").trim();
+            return Err(if told.is_empty() {
+                format!("the line that opens a diff ended with {}", status.code().unwrap_or(-1))
+            } else {
+                told.to_string()
+            });
+        }
+    }
     Ok(())
 }
 
