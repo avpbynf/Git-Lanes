@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   canRunActions, fetchCommit, fetchWorking, WORKING,
   type Commit, type CommitDetail, type WorkingDetail,
@@ -104,6 +104,28 @@ export function CommitPanel({ repo, hash, known, beat, mode, onClose }: Props) {
     !hash.startsWith(WORKING) &&
     (doing.actions.length > 0 || doing.trouble || doing.running)
 
+  const added = detail?.files.reduce((sum, file) => sum + (file.a ?? 0), 0) ?? 0
+  const removed = detail?.files.reduce((sum, file) => sum + (file.d ?? 0), 0) ?? 0
+
+  /**
+   * One file of the two lists, which are the same list twice and now answer a click alike.
+   *
+   * A row is only worth clicking where something is written to open it, so where nothing is it
+   * stays a row: a cursor that promises what no click delivers is worse than no cursor at all.
+   */
+  const open = doing.diffReady && Boolean(hash)
+  const row = (key: string, path: string, counts: ReactNode) => (
+    <div
+      key={key}
+      className={open ? 'file open' : 'file'}
+      title={open ? `${path} . open the diff` : path}
+      onClick={open && hash ? () => void doing.diff(hash, path) : undefined}
+    >
+      <span className="n">{counts}</span>
+      <span className="p">{path}</span>
+    </div>
+  )
+
   return (
     <aside className={shown ? 'panel' : 'panel gone'} style={{ width }}>
       <div className="grip" {...grip} />
@@ -154,6 +176,63 @@ export function CommitPanel({ repo, hash, known, beat, mode, onClose }: Props) {
           </div>
         )}
 
+        {work && (
+          <>
+            <p className="meta">
+              <code>{work.branch}</code> . {work.here ? 'the worktree being read' : work.path}
+              <br />
+              {work.staged} staged, {work.changed} changed, {work.untracked} untracked
+            </p>
+            {work.files.length === 0 ? (
+              <p className="empty">nothing left uncommitted here</p>
+            ) : (
+              work.files.map((file) =>
+                row(
+                  file.st + file.path,
+                  file.path,
+                  file.st === 'untracked'
+                    ? <i className="a">new</i>
+                    : file.a === null
+                      ? 'bin'
+                      : <><i className="a">+{file.a}</i> <i className="d">-{file.d}</i></>,
+                ),
+              )
+            )}
+          </>
+        )}
+        {detail && (
+          <>
+            <p className="meta">
+              <code>{detail.h.slice(0, 12)}</code> . <span title={detail.ae}>{detail.an}</span> .{' '}
+              {new Date(detail.at).toLocaleString()}
+              {detail.merge ? ' . merge commit' : ''}
+              {detail.files.length > 0 && (
+                <>
+                  <br />
+                  {detail.files.length} file{detail.files.length === 1 ? '' : 's'} .{' '}
+                  <i className="a">+{added}</i> <i className="d">-{removed}</i>
+                </>
+              )}
+            </p>
+            {body && <pre>{body}</pre>}
+            {detail.files.length === 0 ? (
+              <p className="empty">no file listed, which is what a merge shows</p>
+            ) : (
+              detail.files.map((file) =>
+                row(
+                  file.path,
+                  file.path,
+                  file.a === null
+                    ? 'bin'
+                    : <><i className="a">+{file.a}</i> <i className="d">-{file.d}</i></>,
+                ),
+              )
+            )}
+          </>
+        )}
+
+        {/* last, so that what a command writes never pushes the commit's own facts off the
+            screen: the output is the one thing here that grows while somebody is reading */}
         {doing.logFor === hash && (doing.lines.length > 0 || doing.ended) && (
           <div className="log">
             <p className={doing.ended && doing.ended.code !== 0 ? 'empty bad' : 'empty'}>
@@ -172,55 +251,6 @@ export function CommitPanel({ repo, hash, known, beat, mode, onClose }: Props) {
               <div ref={tail} />
             </pre>
           </div>
-        )}
-
-        {work && (
-          <>
-            <p className="meta">
-              <code>{work.branch}</code> . {work.here ? 'the worktree being read' : work.path}
-              <br />
-              {work.staged} staged, {work.changed} changed, {work.untracked} untracked
-            </p>
-            {work.files.length === 0 ? (
-              <p className="empty">nothing left uncommitted here</p>
-            ) : (
-              work.files.map((file) => (
-                <div key={file.st + file.path} className="file">
-                  <span className="n">
-                    {file.st === 'untracked'
-                      ? <i className="a">new</i>
-                      : file.a === null
-                        ? 'bin'
-                        : <><i className="a">+{file.a}</i> <i className="d">-{file.d}</i></>}
-                  </span>
-                  <span className="p">{file.path}</span>
-                </div>
-              ))
-            )}
-          </>
-        )}
-        {detail && (
-          <>
-            <p className="meta">
-              <code>{detail.h.slice(0, 12)}</code> . {detail.an} &lt;{detail.ae}&gt;
-              <br />
-              {new Date(detail.at).toLocaleString()}
-              {detail.merge ? ' . merge commit' : ''}
-            </p>
-            {body && <pre>{body}</pre>}
-            {detail.files.length === 0 ? (
-              <p className="empty">no file listed, which is what a merge shows</p>
-            ) : (
-              detail.files.map((file) => (
-                <div key={file.path} className="file">
-                  <span className="n">
-                    {file.a === null ? 'bin' : <><i className="a">+{file.a}</i> <i className="d">-{file.d}</i></>}
-                  </span>
-                  <span className="p">{file.path}</span>
-                </div>
-              ))
-            )}
-          </>
         )}
       </div>
     </aside>

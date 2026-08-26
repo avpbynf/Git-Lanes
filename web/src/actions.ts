@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  editActions, fetchActions, runAction, stopAction, watchAction,
+  editActions, fetchActions, fetchDiffReady, openDiff, runAction, stopAction, watchAction, WORKING,
   type Action, type ActionEnded, type ActionLine,
 } from './api'
 
@@ -25,6 +25,8 @@ interface Running {
  */
 export function useActions(repo: string | null, beat: string | undefined) {
   const [actions, setActions] = useState<Action[]>([])
+  /** Whether a file in the panel is worth clicking, which the same file decides. */
+  const [diffReady, setDiffReady] = useState(false)
   /** Why there are none, when the reason is not simply that none are written. */
   const [trouble, setTrouble] = useState<string | null>(null)
   /** The commit the output on screen belongs to, and nowhere else is it shown. */
@@ -50,6 +52,9 @@ export function useActions(repo: string | null, beat: string | undefined) {
         // parse looks exactly like a list that is empty because nothing is written in it
         setTrouble(err instanceof Error ? err.message : String(err))
       })
+    fetchDiffReady()
+      .then((ready) => live && setDiffReady(ready))
+      .catch(() => live && setDiffReady(false))
     return () => {
       live = false
     }
@@ -115,11 +120,30 @@ export function useActions(repo: string | null, beat: string | undefined) {
     }
   }, [repo])
 
+  /**
+   * One file's two sides, in whatever the user's own line says opens them.
+   *
+   * What was clicked is either a commit or a worktree, and the row already says which: what goes
+   * wrong is said where a command's own trouble is said, rather than swallowed.
+   */
+  const diff = useCallback(
+    async (hash: string, path: string) => {
+      const folder = hash.startsWith(WORKING) ? hash.slice(WORKING.length) : ''
+      try {
+        await openDiff(repo, folder ? '' : hash, path, folder)
+      } catch (err) {
+        setLogFor(hash)
+        setEnded({ code: -1, message: err instanceof Error ? err.message : String(err) })
+      }
+    },
+    [repo],
+  )
+
   const clear = useCallback(() => {
     setLines([])
     setEnded(null)
     setLogFor(null)
   }, [])
 
-  return { actions, trouble, lines, logFor, running, ended, start, stop, edit, clear }
+  return { actions, diffReady, trouble, lines, logFor, running, ended, start, stop, edit, diff, clear }
 }
