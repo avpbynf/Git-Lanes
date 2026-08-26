@@ -151,6 +151,30 @@ The file is yours and lives beside the list of repositories, never in a reposito
 cloned cannot bring its own commands with it. And a command runs in the window only, never through
 the Python backend, which answers on a port any page in any browser can post to.
 
+## Your own editor, on a file of a commit
+
+Click a file in the panel and its two sides open where you read diffs. Which is a line in that
+same file, written once for every project since an editor is nobody's project:
+
+```json
+{
+  "diff": "zed --diff \"{old}\" \"{new}\"",
+  "C:\\Users\\you\\code\\your-app": { "actions": [] }
+}
+```
+
+`{old}` and `{new}` are the file before the commit and after it, written under a folder of their
+own with the name they carry in the repository, so your editor colours them as what they are.
+`{path}`, `{sha}` and `{repo}` are there too. Quote them: a temporary folder can hold a space.
+
+Anything that takes two files works, which is the reason nothing is chosen for you:
+`code --diff "{old}" "{new}"` for VS Code, `idea diff "{old}" "{new}"` for IntelliJ. Write no line
+and no file is clickable, since a row that lights up under the pointer and then opens nothing is
+worse than a row that never offered.
+
+On the row of uncommitted work the left side is HEAD and the right side is the file itself rather
+than a copy, so what you are reading is what you can fix.
+
 ## How it reads a repository
 
 The lane assignment is the whole trick, and it lives in `build_graph`. A lane holds the hash it is

@@ -12,6 +12,20 @@ still.
 
 ## Unreleased
 
+- **A file in the panel opens its diff where you read diffs.** Both sides of it are written out
+  under the name they carry in the repository, and handed to a line you write once in the same
+  file the commands live in: `zed --diff`, `code --diff`, whatever takes two files. Nothing is
+  chosen for you, and until that line is written no file is clickable. On the row of uncommitted
+  work the right-hand side is the file itself, so what you read is what you can fix.
+
+- **What a command writes no longer pushes the commit out of the way.** The output was between
+  the buttons and the facts, so a build running meant the hash, the author, the date and the
+  files went below the fold. It is last now.
+
+- **A commit says what it totals**, how many files and the sum of the lines added and removed,
+  the way the row of uncommitted work has always said its counts. The author's address moved to
+  the hover of their name, which puts the date back on the same line.
+
 - **The commit panel is a column from the first open**, at the width the other side opens at,
   rather than something a click has to fetch. The mode a click opens is still in the menu for
   whoever wants the graph to have the whole window, and so is turning the panel off.
