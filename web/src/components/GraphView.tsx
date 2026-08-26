@@ -2,8 +2,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperti
 import type { Commit, Edge, Graph } from '../api'
 import type { TrailMode } from '../settings'
 import {
-  DOT, GUTTER, HEAD, ROW, ago, colorOf, dayLabel, edgePath, edgeSpan, graphWidth, laneX, rowY,
-  tint, type Theme,
+  DOT, GUTTER, HEAD, LANES, ROW, ago, colorOf, dayLabel, edgePath, edgeSpan, graphWidth, laneX,
+  rowY, tint, type Theme,
 } from '../lanes'
 import { useColumns } from '../columns'
 
@@ -161,6 +161,8 @@ export function GraphView({
   const [viewport, setViewport] = useState(800)
   // the row the pointer is on, which is what says which lane to follow
   const [hovered, setHovered] = useState<number | null>(null)
+  // how far the drawing is scrolled inside its own column, when it is wider than the room given
+  const [pan, setPan] = useState(0)
   // the commit the eye is on, so new commits landing on top do not move it
   const anchor = useRef<{ h: string; delta: number } | null>(null)
   const jumped = useRef(0)
@@ -230,7 +232,8 @@ export function GraphView({
   const last = Math.min(count, Math.ceil((under + viewport) / ROW) + OVERSCAN)
   const windowTop = first * ROW
   const windowHeight = Math.max((last - first) * ROW, 0)
-  const width = graphWidth(graph.lanes)
+  // what the drawing needs, and what it is given: past the second the first one scrolls
+  const drawn = graphWidth(graph.lanes)
 
   /**
    * How wide the two columns on the right have to be, and no wider.
@@ -290,8 +293,13 @@ export function GraphView({
 
   // measured on what is loaded, until a hand puts a column somewhere else and keeps it there
   const gutter = columns.held.gutter ?? GUTTER
+  // never more room than the drawing needs, however much a hand asked for
+  const lanes = Math.min(columns.held.lanes ?? LANES, drawn)
   const who = columns.held.who ?? widths.who
   const when = columns.held.when ?? widths.when
+  // what is scrolled past above the rows, which is what the drawing has to be moved by to stay
+  // where the rows it belongs to are
+  const above = Math.max(0, scrollTop - HEAD)
 
   return (
     <div
@@ -299,7 +307,7 @@ export function GraphView({
       ref={scroller}
       onScroll={onScroll}
       style={{
-        '--gw': `${width}px`,
+        '--gw': `${lanes}px`,
         '--gutter': `${gutter}px`,
         '--who': `${who}px`,
         '--when': `${when}px`,
@@ -311,7 +319,18 @@ export function GraphView({
         <div className="gut">
           <span className="edge right" {...columns.grip('gutter', gutter, 1)} />
         </div>
-        <div />
+        {/* the drawing scrolls sideways from here, where a scrollbar is in the way of nothing:
+            over the rows it would swallow the hovering the rows themselves answer. The grip is
+            beside that strip and not inside it, or its own width would be something to scroll */}
+        <div>
+          <div
+            className="lanes-strip"
+            onScroll={(event) => setPan(event.currentTarget.scrollLeft)}
+          >
+            <div style={{ width: drawn, height: 1 }} />
+          </div>
+          <span className="edge right" {...columns.grip('lanes', lanes, 1)} />
+        </div>
         <div className="msg">commit</div>
         <div className="who">
           <span className="edge" {...columns.grip('who', who, -1)} />
@@ -324,12 +343,16 @@ export function GraphView({
       </div>
 
       <div className="canvas" style={{ height: count * ROW }}>
+        {/* held in the room its column was given, and scrolled inside it. It follows the scroll
+            by hand rather than by sticking to it, since what is under it is a window of rows
+            that moves for the same reason */}
+        <div className="lanes" style={{ top: above, height: viewport, width: lanes }}>
         <svg
           className="wires"
-          width={width}
+          width={drawn}
           height={windowHeight}
-          viewBox={`0 ${windowTop} ${width} ${windowHeight}`}
-          style={{ top: windowTop }}
+          viewBox={`0 ${windowTop} ${drawn} ${windowHeight}`}
+          style={{ top: windowTop - above, left: -pan }}
         >
           {/* the lane being followed keeps its strength and the rest give way */}
           <g className={run ? 'faint' : undefined}>
@@ -399,6 +422,7 @@ export function GraphView({
             )
           })}
         </svg>
+        </div>
 
         <div
           className="rows"

@@ -5,6 +5,14 @@ export const ROW = 28
 export const GUTTER = 64
 /** The strip naming the columns, which is also what they are dragged by. */
 export const HEAD = 24
+/**
+ * How much room the drawing takes before it starts scrolling inside its own column.
+ *
+ * A history of a hundred branches is a drawing wider than any window, and letting it push the
+ * author and the date off the side means scrolling right to read a name and losing the graph to
+ * do it. Past this it scrolls on its own instead, and a hand can put the boundary elsewhere.
+ */
+export const LANES = 260
 export const LANE = 16
 export const PADX = 12
 export const DOT = 3.6

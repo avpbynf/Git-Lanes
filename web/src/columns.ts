@@ -1,7 +1,7 @@
 import { useRef, useState, type PointerEvent } from 'react'
 
 /** Which of the fixed columns a hand can move. The subject is what the others leave. */
-export type Column = 'gutter' | 'who' | 'when'
+export type Column = 'gutter' | 'lanes' | 'who' | 'when'
 
 /** What a column may not go under. Below this there is nothing left to read in it. */
 const MIN = 24

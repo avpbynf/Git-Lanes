@@ -381,6 +381,16 @@ button:disabled { cursor: default; color: var(--faint); }
 }
 
 .head > * { position: relative; min-width: 0; overflow: hidden; }
+
+/* what scrolls the drawing sideways: a strip as wide as the drawing needs, in a cell as wide as
+   the drawing was given, so the scrollbar appears exactly when there is more than fits */
+.head .lanes-strip {
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
 .head .msg { padding-left: 2px; }
 .head .who { padding-left: 22px; }
 .head .when { text-align: right; padding-right: 12px; }
@@ -400,12 +410,17 @@ button:disabled { cursor: default; color: var(--faint); }
 .head .edge:hover { background: var(--accent); opacity: 0.35; }
 .canvas { position: relative; min-width: min-content; }
 
-.wires {
+/* the room the drawing is given, which is the column it lives in. Nothing here answers the
+   pointer: the rows underneath do, and a scrollbar over them would eat the hovering they answer */
+.lanes {
   position: absolute;
   left: var(--gutter);
   z-index: 2;
+  overflow: hidden;
   pointer-events: none;
 }
+
+.wires { position: absolute; }
 
 /* a history that stops here rather than at its first commit */
 .wires .stub { opacity: 0.5; }
