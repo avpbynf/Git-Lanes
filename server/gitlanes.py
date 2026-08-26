@@ -113,6 +113,21 @@ def project_file():
     return os.path.join(base, "gitlanes", "actions.json")
 
 
+def project_stamp():
+    """What moves when that file does, without opening it.
+
+    Nothing in git notices it, so a trunk renamed or a command added would otherwise sit there
+    unread until the page was reloaded by hand. It goes into the fingerprint the page already
+    asks for every couple of seconds, which is why this answers from the file's size and its date
+    rather than from its contents: it is asked on every tick and read on almost none of them.
+    """
+    try:
+        held = os.stat(project_file())
+    except OSError:
+        return ""
+    return "%d:%d" % (held.st_mtime_ns, held.st_size)
+
+
 def trunks_of(repo):
     """The branches this project's work lands on, as its own entry says, or the usual four.
 
@@ -378,11 +393,15 @@ def fingerprint(repo):
     The working trees of the other worktrees are not in it, on purpose: a status run in each of
     them on every tick is exactly the cost this question exists to avoid. Their rows therefore
     catch up whenever anything else moves, rather than the moment they change.
+
+    The user's own file is in it, which is no repository's business but is the only thing that
+    asks again for what that file holds: the commands of a project and the branches its work
+    lands on are both read from it, and saving it is a change nothing in git can see.
     """
     refs = git(repo, "for-each-ref", "--format=%(objectname) %(refname)")
     head = git_soft(repo, "rev-parse", "--verify", "-q", "HEAD")
     dirty = git(repo, "status", "--porcelain")
-    return hashlib.sha1((refs + head + dirty).encode("utf-8")).hexdigest()
+    return hashlib.sha1((refs + head + dirty + project_stamp()).encode("utf-8")).hexdigest()
 
 
 def head_of(repo):
