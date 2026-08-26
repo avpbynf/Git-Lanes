@@ -1011,6 +1011,10 @@ fn build_graph(raw: Vec<Raw>) -> (Vec<Commit>, Vec<Edge>, usize) {
 /// The working trees of the other worktrees are not in it, on purpose: a status run in each of
 /// them on every tick is exactly the cost this question exists to avoid. Their rows therefore
 /// catch up whenever anything else moves, rather than the moment they change.
+///
+/// The user's own file is in it, which is no repository's business but is the only thing that
+/// asks again for what that file holds: the commands of a project and the branches its work
+/// lands on are both read from it, and saving it is a change nothing in git can see.
 pub fn fingerprint(repo: &str) -> Result<String, String> {
     let refs = git(repo, &["for-each-ref", "--format=%(objectname) %(refname)"])?;
     let head = git_soft(repo, &["rev-parse", "--verify", "-q", "HEAD"]);
@@ -1019,6 +1023,7 @@ pub fn fingerprint(repo: &str) -> Result<String, String> {
     refs.hash(&mut hasher);
     head.hash(&mut hasher);
     dirty.hash(&mut hasher);
+    crate::actions::stamp().hash(&mut hasher);
     Ok(format!("{:016x}", hasher.finish()))
 }
 

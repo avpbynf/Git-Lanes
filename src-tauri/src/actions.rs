@@ -90,6 +90,23 @@ fn all_projects() -> HashMap<String, Held> {
     serde_json::from_str::<HashMap<String, Held>>(&text).unwrap_or_default()
 }
 
+/// What moves when that file does, without opening it.
+///
+/// Nothing in git notices it, so a command added or a trunk renamed would otherwise sit there
+/// unread until the page was reloaded by hand. It goes into the fingerprint the window already
+/// asks for every couple of seconds, which is why this answers from the file's size and its date
+/// rather than from its contents: it is asked on every tick and read on almost none of them.
+pub fn stamp() -> String {
+    let Ok(held) = std::fs::metadata(actions_file()) else { return String::new() };
+    let when = held
+        .modified()
+        .ok()
+        .and_then(|at| at.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|since| since.as_nanos())
+        .unwrap_or_default();
+    format!("{when}:{}", held.len())
+}
+
 fn held_for(repo: &str) -> Option<Held> {
     let wanted = repo.to_lowercase().replace('/', "\\");
     all_projects()
