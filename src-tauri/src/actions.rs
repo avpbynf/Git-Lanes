@@ -83,11 +83,41 @@ enum Held {
     },
 }
 
+/// The one key in that file that names no repository: what opens a diff.
+///
+/// It is written once for every project rather than once per project, because an editor is
+/// nobody's project. Nothing else can be spelled like it, since every other key is the absolute
+/// path of a repository.
+const DIFF: &str = "diff";
+
+/// The file as it stands, read as an object rather than as a table of projects.
+///
+/// A table is what it was until one key stopped being a project. Reading it as one now would
+/// fail on that key and answer an empty table, which is to say it would hide every command in
+/// the file rather than the one line it could not place.
+fn file_object() -> serde_json::Map<String, serde_json::Value> {
+    let Ok(text) = std::fs::read_to_string(actions_file()) else { return Default::default() };
+    match serde_json::from_str::<serde_json::Value>(&text) {
+        Ok(serde_json::Value::Object(held)) => held,
+        _ => Default::default(),
+    }
+}
+
 /// The file is a repository path to what that project holds, and paths are matched the way
 /// Windows matches them, which is without regard to case.
 fn all_projects() -> HashMap<String, Held> {
-    let Ok(text) = std::fs::read_to_string(actions_file()) else { return HashMap::new() };
-    serde_json::from_str::<HashMap<String, Held>>(&text).unwrap_or_default()
+    file_object()
+        .into_iter()
+        .filter(|(key, _)| key != DIFF)
+        // an entry nobody can read is one project gone quiet, not the whole file
+        .filter_map(|(key, held)| serde_json::from_value(held).ok().map(|held| (key, held)))
+        .collect()
+}
+
+/// The command line that shows one file's two sides, as the file spells it, empty when it says
+/// nothing. Empty is what tells the page not to make the rows clickable at all.
+pub fn diff_command() -> String {
+    file_object().get(DIFF).and_then(|held| held.as_str()).unwrap_or_default().to_string()
 }
 
 /// What moves when that file does, without opening it.
@@ -209,7 +239,12 @@ fn posix(path: &str) -> String {
     }
 }
 
-fn spawn(shell: &Shell, line: &str, cwd: &Path) -> std::io::Result<Child> {
+/// The shell, the line and the folder it runs in, with no console of its own.
+///
+/// What becomes of the three streams is left to the caller, because a command watched line by
+/// line and a command let go want opposite things: pipes nobody reads fill up and stop the
+/// command that is writing into them.
+fn shell_command(shell: &Shell, line: &str, cwd: &Path) -> Command {
     let mut command = match shell {
         Shell::Bash(bash) => {
             let mut held = Command::new(bash);
@@ -237,8 +272,78 @@ fn spawn(shell: &Shell, line: &str, cwd: &Path) -> std::io::Result<Child> {
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         command.creation_flags(CREATE_NO_WINDOW);
     }
-    command.current_dir(cwd).stdout(Stdio::piped()).stderr(Stdio::piped()).stdin(Stdio::null());
+    command.current_dir(cwd).stdin(Stdio::null());
+    command
+}
+
+fn spawn(shell: &Shell, line: &str, cwd: &Path) -> std::io::Result<Child> {
+    let mut command = shell_command(shell, line, cwd);
+    command.stdout(Stdio::piped()).stderr(Stdio::piped());
     command.spawn()
+}
+
+/// One side of a diff, on disk under the name it carries in the repository.
+///
+/// A side that is not there is written empty rather than refused: a file the commit added has no
+/// before, one it deleted has no after, and both are worth looking at.
+fn write_side(repo: &str, rev: &str, path: &str, into: &Path) -> Result<(), String> {
+    if let Some(folder) = into.parent() {
+        std::fs::create_dir_all(folder).map_err(|err| err.to_string())?;
+    }
+    let held = git::git_bytes(repo, &["show", &format!("{rev}:{path}")]).unwrap_or_default();
+    std::fs::write(into, held).map_err(|err| err.to_string())
+}
+
+/// Open one file's two sides in whatever the user's own line says opens them.
+///
+/// The two sides keep the path they have in the repository, under `before` and `after`, and that
+/// is the whole trick: an editor handed two files called `old` and `new` colours neither of them,
+/// and a diff read without colours is a diff read twice.
+///
+/// `folder` names a worktree rather than a commit, and changes what the two sides are: HEAD on
+/// the left, and on the right the file itself rather than a copy, so what is read can be edited.
+pub fn open_diff(repo: &str, sha: &str, path: &str, folder: &str) -> Result<(), String> {
+    let line = diff_command();
+    if line.trim().is_empty() {
+        return Err("nothing in the file says what opens a diff".into());
+    }
+
+    let working = !folder.is_empty();
+    let short: String = if working { "worktree".into() } else { sha.chars().take(7).collect() };
+    let root = std::env::temp_dir().join("gitlanes-diff").join(&short);
+    // what the last look at this commit left behind is what an editor would open again
+    let _ = std::fs::remove_dir_all(&root);
+
+    let parent = format!("{sha}^");
+    let before = root.join("before").join(path);
+    write_side(repo, if working { "HEAD" } else { &parent }, path, &before)?;
+
+    let after = if working {
+        Path::new(folder).join(path)
+    } else {
+        let after = root.join("after").join(path);
+        write_side(repo, sha, path, &after)?;
+        after
+    };
+
+    // the paths are spelled the way the shell about to read them spells paths
+    let shell = shell_of(repo);
+    let spell = |held: &str| match shell {
+        Shell::Bash(_) => posix(held),
+        Shell::Plain => held.to_string(),
+    };
+    let line = line
+        .replace("{old}", &spell(&before.to_string_lossy()))
+        .replace("{new}", &spell(&after.to_string_lossy()))
+        .replace("{path}", path)
+        .replace("{sha}", sha)
+        .replace("{repo}", &spell(repo));
+
+    let where_ = if working { folder } else { repo };
+    let mut command = shell_command(&shell, &line, Path::new(where_));
+    command.stdout(Stdio::null()).stderr(Stdio::null());
+    command.spawn().map_err(|err| format!("the diff could not be opened: {err}"))?;
+    Ok(())
 }
 
 fn say(app: &AppHandle, text: impl Into<String>, bad: bool) {

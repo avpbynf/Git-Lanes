@@ -196,6 +196,25 @@ async fn stop_action() -> Result<(), String> {
     actions::stop()
 }
 
+/// Whether the user's own file says what opens a diff. Nothing does when it does not, and the
+/// page needs to know that before it makes a row look like something to click.
+#[tauri::command]
+async fn diff_ready() -> Result<bool, String> {
+    off_thread(|| Ok(!actions::diff_command().trim().is_empty())).await
+}
+
+/// Show one file's two sides. `folder` names a worktree instead of a commit, in which case the
+/// right-hand side is the file itself rather than a copy of it.
+#[tauri::command]
+async fn open_diff(
+    repo: Option<String>,
+    sha: String,
+    path: String,
+    folder: String,
+) -> Result<(), String> {
+    off_thread(move || actions::open_diff(&which_repo(repo)?, &sha, &path, &folder)).await
+}
+
 /// Opens the file in whatever the system opens JSON with, writing an example first if there is
 /// nothing there yet, and answers where it is.
 #[tauri::command]
@@ -219,7 +238,9 @@ fn main() {
             project_actions,
             run_action,
             stop_action,
-            edit_actions
+            edit_actions,
+            diff_ready,
+            open_diff
         ])
         .run(tauri::generate_context!())
         .expect("GitLanes could not start its window");
