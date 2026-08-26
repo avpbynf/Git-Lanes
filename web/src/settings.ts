@@ -38,7 +38,8 @@ const FALLBACK: Settings = {
   showRefs: true,
   // the graph keeps its whole width until a commit is actually asked for
   panel: 'onClick',
-  trail: 'hover',
+  // a graph that recolours itself under a pointer crossing it is a graph nobody asked to move
+  trail: 'click',
 }
 
 /** A key the stored shape never had falls back, so an old blob never breaks a boot. */
