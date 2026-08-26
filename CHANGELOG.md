@@ -10,6 +10,13 @@ than publishing an installer named after one thing and built from another.
 Nothing here promises what the next version holds, and nothing under `1.0.0` promises to hold
 still.
 
+## Unreleased
+
+- **Saving the file of actions is enough for the list to hold them.** A command added or renamed
+  in it stayed unread until the window was reloaded by hand, and so did a change to the branches
+  a project's work lands on. The file is now watched the way the repository is, so an edit lands
+  within a couple of seconds of being saved.
+
 ## 0.2.0
 
 - **The drawing has a column of its own, and scrolls inside it.** A history wide enough pushed the
