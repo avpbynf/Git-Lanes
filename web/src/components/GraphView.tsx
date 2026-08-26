@@ -479,9 +479,14 @@ export function GraphView({
                           >
                             {ref.n}
                           </span>
-                          {ref.m && <span className="mark" title={MERGED}>merged</span>}
                         </span>
                       ))}
+                      {/* once for the row rather than once per label: it answers of the commit,
+                          and two branches left on one commit are given the same answer by
+                          construction, so a second badge repeats the first word for word */}
+                      {carried.some((ref) => ref.m) && (
+                        <span className="mark" title={MERGED}>merged</span>
+                      )}
                     </span>
                   )}
                 </div>
