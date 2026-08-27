@@ -12,6 +12,20 @@ still.
 
 ## Unreleased
 
+- **A row draws the labels it can draw whole, and counts the rest.** A release commit carries
+  its tag, its branch, the remote copy of that branch and the remote's own HEAD, and all four
+  used to give up their heads at once: `...v`, `...1-beta`, `...in/main`, five labels nobody
+  could tell apart. What does not fit is a `+3` now, which names the missing ones under the
+  cursor, and the subject keeps a floor of its own rather than being the only thing that gives
+  way.
+
+- **Clicking a commit lights every branch standing on it** in the tree, rather than the first of
+  them. Where the row has no space to say which four refs it carries, the column beside it does.
+
+- **The line between two columns is drawn in the strip that names them.** The columns have always
+  been draggable from there and nothing said so, since a rule down every row would turn a graph
+  into a table. It is drawn in the strip alone, faint until the pointer finds it.
+
 - **The history's last column stops saying `ago`.** A column of durations under a heading that
   says when reads as a duration without the word, and those four characters were on every row.
   Where a sentence needs the word rather than a column, it still has it.

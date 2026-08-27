@@ -14,6 +14,14 @@ interface Props {
   shown: boolean
   /** The full name of the ref the reading sits on, which the tree highlights. */
   active: string | null
+  /**
+   * The commit picked in the graph, so every ref standing on it is lit rather than one of them.
+   *
+   * A release commit carries a tag, a branch, its remote and the remote's HEAD, and the graph
+   * squeezes those four labels into one row: the tree is where there is room to say which four,
+   * and lighting the first alone said the other three were somewhere else.
+   */
+  here: string | null
   /** Moves whenever a ref does, which is when the tree is worth reading again. */
   fingerprint: string
   onPickRepo: (path: string) => void
@@ -88,7 +96,7 @@ function Twig<T extends Named>({ nodes, depth, shut, onFold, leaf }: TwigProps<T
 }
 
 export function Sidebar({
-  repos, current, shown, active, fingerprint, onPickRepo, onRepos, onTake,
+  repos, current, shown, active, here, fingerprint, onPickRepo, onRepos, onTake,
 }: Props) {
   const [answer, setAnswer] = useState<Answer | null>(null)
   const [hunt, setHunt] = useState('')
@@ -232,12 +240,15 @@ export function Sidebar({
     }
   }, [list, needle])
 
+  /** Lit either because the graph is bounded by it, or because it stands on the commit read. */
+  const litUp = (refname: string, head: string) => refname === active || head === here
+
   const branchLeaf = (node: Leaf<Branch>, depth: number) => {
     const refname = HEADS + node.ref.name
     return (
       <button
         key={node.path}
-        className={refname === active ? 'twig leaf on' : 'twig leaf'}
+        className={litUp(refname, node.ref.head) ? 'twig leaf on' : 'twig leaf'}
         style={{ paddingLeft: 6 + depth * 12 + 14 }}
         title={storyOf(node.ref, list?.base ?? null)}
         onClick={() => onTake(refname, node.ref.head)}
@@ -256,7 +267,7 @@ export function Sidebar({
     return (
       <button
         key={node.path}
-        className={refname === active ? 'twig leaf on' : 'twig leaf'}
+        className={litUp(refname, node.ref.head) ? 'twig leaf on' : 'twig leaf'}
         style={{ paddingLeft: 6 + depth * 12 + 14 }}
         title={`${node.ref.head.slice(0, 12)}\n${since(new Date(node.ref.t))}`}
         onClick={() => onTake(refname, node.ref.head)}
