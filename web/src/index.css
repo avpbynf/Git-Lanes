@@ -579,20 +579,18 @@ button:disabled { cursor: default; color: var(--faint); }
 /* a ref and what is said about it travel together, so neither is cut from the other */
 .held { display: flex; gap: 4px; min-width: 0; }
 
-/* the labels that were left out, which the tree beside it holds whole. Quieter than the badge
-   it borrows from, since it names nothing itself */
-.mark.more { background: none; color: var(--faint); border: 1px solid var(--line); }
-
-/* not a ref: what a trunk says about one. Filled, where a ref is outlined, so the two do not
-   read as two branches */
+/* not a ref: what is said about one, or about a worktree. Outlined like everything else on the
+   row and grey where the others carry a colour, which is what keeps it from reading as a fourth
+   kind of branch. It used to be filled, and a filled thing among outlined ones is the loudest
+   thing on a row, which `merged` and `3 changed` are not */
 .mark {
   flex: none;
   border-radius: 3px;
   padding: 0 5px;
   font-size: 10.5px;
   line-height: 15px;
-  background: var(--faint);
-  color: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--faint);
 }
 
 /* where a branch has got to, at a glance: yours alone, theirs alone, or the same commit under
@@ -967,7 +965,11 @@ button:disabled { cursor: default; color: var(--faint); }
 /* the settings menu */
 
 .settings { position: relative; }
-.settings .drop { width: 340px; }
+
+/* wide enough that no line of it folds: measured, since what has to fit is the longest label,
+   the longest hint under it and the widest row of choices beside them, and 440 is where the last
+   of the five stops folding. A line that folds in a menu of five lines reads as a sixth */
+.settings .drop { width: 440px; }
 
 .opt {
   display: flex;

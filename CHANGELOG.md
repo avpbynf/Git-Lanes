@@ -12,6 +12,10 @@ still.
 
 ## Unreleased
 
+- **The menu is wide enough that none of its lines fold.** A label, the line under it and the
+  choices beside them each fit on one line now, where the last two options were folding onto a
+  second and reading as more options than there are.
+
 - **The path lit on a click starts on the commit you clicked** and goes down from there. It ran
   up the line that carried on from it as well, and that is somebody else's history: what a click
   asks is how this commit got here, and the answer starts where the asking did.
@@ -21,6 +25,9 @@ still.
   carries `dev` and `main` beside it, so the badge there said nothing that was not on screen
   already, and it said the one thing that was not true. A branch a trunk really has taken in
   keeps it.
+
+  Where it is kept it is outlined and grey like everything else on the row, rather than filled.
+  A filled thing among outlined ones is the loudest thing on a line, which `merged` is not.
 
 - **The dates stand against the right edge and are not dragged any more.** What that column
   holds is `14 min` and `12 Aug`, so the width that fits them is the width, and a grip there
