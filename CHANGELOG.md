@@ -12,10 +12,15 @@ still.
 
 ## Unreleased
 
-- **The path lit on a click ends on the commit you clicked.** It used to run down the whole
-  history behind it as well, which every commit came by and which said nothing about the one you
-  picked: lighting it lit most of the graph. What a click asks is where this commit went, and the
-  answer stops where the asking did.
+- **The path lit on a click starts on the commit you clicked** and goes down from there. It ran
+  up the line that carried on from it as well, and that is somebody else's history: what a click
+  asks is how this commit got here, and the answer starts where the asking did.
+
+- **A branch standing where a trunk stands is not called merged.** It has nothing of its own to
+  have been merged: it was made and left, or the trunk has not moved since. The row already
+  carries `dev` and `main` beside it, so the badge there said nothing that was not on screen
+  already, and it said the one thing that was not true. A branch a trunk really has taken in
+  keeps it.
 
 - **The dates stand against the right edge and are not dragged any more.** What that column
   holds is `14 min` and `12 Aug`, so the width that fits them is the width, and a grip there
