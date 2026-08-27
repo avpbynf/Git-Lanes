@@ -4,7 +4,7 @@ import {
   type Branch, type BranchList, type PlainRef, type RepoEntry,
 } from '../api'
 import { since } from '../lanes'
-import { MIN_WIDTH, usePanelWidth, WIDTH } from '../panel'
+import { MIN_WIDTH, usePanelWidth } from '../panel'
 import { countOf, ordered, tree, type Leaf, type Named, type Node } from '../refs'
 import { HEADS, REMOTES, TAGS } from '../scope'
 
@@ -143,7 +143,7 @@ export function Sidebar({
       })
   }, [shown, current, fingerprint])
 
-  const { width, grip } = usePanelWidth('refs', WIDTH, MIN_WIDTH, 'left')
+  const { width, grip } = usePanelWidth('refs', MIN_WIDTH, 'left')
 
   const fold = (path: string) =>
     setShut((was) => {
@@ -381,11 +381,14 @@ export function Sidebar({
    *
    * `beside` is a sibling of the fold rather than something inside it: what folds a drawer is a
    * button, and a button holds no second one.
+   *
+   * `count` is left out where the rows are few enough to be counted by looking at them. It earns
+   * its place on a drawer that holds a hundred branches and is shut.
    */
   const section = (
     key: string,
     label: string,
-    count: number,
+    count: number | null,
     body: ReactNode,
     beside?: ReactNode,
   ) => (
@@ -394,7 +397,7 @@ export function Sidebar({
         <button className="twig part-head" onClick={() => fold(key)}>
           <span className="caret">{shut.has(key) ? '>' : 'v'}</span>
           <span className="name">{label}</span>
-          <span className="count">{count}</span>
+          {count !== null && <span className="count">{count}</span>}
         </button>
         {beside}
       </div>
@@ -416,7 +419,7 @@ export function Sidebar({
       </div>
 
       <div className="tree">
-        {section('\0projects', 'projects', repos.length,
+        {section('\0projects', 'projects', null,
           <div ref={shelfRef}>
             {arranged.map((repo) => (
               <div
