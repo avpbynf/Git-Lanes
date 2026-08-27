@@ -10,7 +10,7 @@ than publishing an installer named after one thing and built from another.
 Nothing here promises what the next version holds, and nothing under `1.0.0` promises to hold
 still.
 
-## Unreleased
+## 0.5.0
 
 - **The menu is wide enough that none of its lines fold.** A label, the line under it and the
   choices beside them each fit on one line now, where the last two options were folding onto a
