@@ -441,7 +441,14 @@ fn read_in_trunk(repo: &str, tips: &[(String, String)], named: &[String]) -> InT
     };
     let trunk_tips: Vec<&str> =
         tips.iter().filter(|(n, _)| is_trunk(n)).map(|(_, h)| h.as_str()).collect();
-    let topics: Vec<&(String, String)> = tips.iter().filter(|(n, _)| !is_trunk(n)).collect();
+    // A branch standing on the very commit a trunk stands on has nothing of its own to have
+    // been merged: it was made and left, or the trunk has not moved since. The row already
+    // carries the trunk's own label beside it, so `merged` there says nothing that is not
+    // already on screen, and it says the one thing that is not true.
+    let topics: Vec<&(String, String)> = tips
+        .iter()
+        .filter(|(n, h)| !is_trunk(n) && !trunk_tips.contains(&h.as_str()))
+        .collect();
     if trunk_tips.is_empty() || topics.is_empty() {
         return (merged, twins);
     }
