@@ -1,0 +1,40 @@
+name: Something is missing
+description: A thing the window should say or do and does not.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        What this tool is for is reading a history, so the useful shape of a request is the
+        question you could not answer by looking, rather than the control you imagined for it.
+        The control is the part that gets designed here; the question is the part only you have.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: What you could not see
+      description: >
+        The moment it happened, and what you did instead. A window open on a real repository is
+        worth more than a description of one.
+    validations:
+      required: true
+
+  - type: textarea
+    id: shape
+    attributes:
+      label: What you had in mind, if you had something
+      description: >
+        Not required, and not binding. Where it would live and what it would say, so the two of us
+        are talking about the same thing.
+    validations:
+      required: false
+
+  - type: textarea
+    id: elsewhere
+    attributes:
+      label: Where you have seen it work
+      description: >
+        Another tool that answers this, and what it gets right about it. Just as useful is another
+        tool that answers it badly, and why.
+    validations:
+      required: false

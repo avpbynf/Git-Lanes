@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: What the tool is and how to run it
+    url: https://github.com/avpbynf/Git-Lanes/blob/main/README.md
+    about: The window, the page, and what each of them needs. Most of what a first run raises is named there.
+  - name: A file answers no click, or a project has no commands
+    url: https://github.com/avpbynf/Git-Lanes/blob/main/README.md#your-own-commands
+    about: Both come from your own file rather than from the tool. The panel says which, and the pencil in its header opens that file.
+  - name: What is already known to be missing
+    url: https://github.com/avpbynf/Git-Lanes/issues?q=is%3Aissue+is%3Aopen+label%3A%22known+limitation%22
+    about: The gaps this already knows about are open as issues. A symptom that matches one is worth a comment there rather than a new report.

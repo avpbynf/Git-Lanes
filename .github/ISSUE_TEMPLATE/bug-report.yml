@@ -1,0 +1,66 @@
+name: Something is broken
+description: A window that will not start, a graph that draws wrongly, a command that does nothing.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Two answers before the form, because they are most of what gets reported.
+
+        A file in the panel that answers no click, and a row of commands that is empty, are
+        both the same thing: nothing in your own file says what opens a diff, or no command is
+        written for that project. The panel says so under the list, and the pencil in its header
+        opens that file.
+
+        The window and the page are two backends answering the same shapes, so say which one you
+        were in. A thing that happens in only one of them is worth twice as much as one that
+        happens in both.
+
+  - type: input
+    id: version
+    attributes:
+      label: The version
+      description: What the bar prints, beside the name.
+      placeholder: "0.5.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - The window
+        - A browser, on the Python backend
+        - Both
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens
+      description: What you did, what happened, and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repository
+    attributes:
+      label: The repository it happened on
+      description: >
+        What is peculiar about it, rather than its name: how many branches and commits, whether it
+        has several worktrees, several remotes, a shallow clone, tags on the same commits as
+        branches. A graph draws what a repository is.
+    validations:
+      required: true
+
+  - type: textarea
+    id: file
+    attributes:
+      label: Your own file, if the trouble is a command or a diff
+      description: >
+        `%APPDATA%\gitlanes\actions.json`, with anything private taken out. The line that opens a
+        diff and the commands of the project concerned are what matter.
+    validations:
+      required: false
