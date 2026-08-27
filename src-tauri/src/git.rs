@@ -395,19 +395,31 @@ fn patch_ids(repo: &str, revs: &[String]) -> HashMap<String, Vec<String>> {
 /// they are one done twice.
 ///
 /// Both answers are the same question asked of the patch rather than of the hash.
+///
+/// Asked of the remote branches as well as of your own, since a pull request merged and its
+/// branch deleted leaves nothing local at all: the copy on the remote is the only thing left
+/// saying that work happened, and it is the one the row is carrying a label for.
 pub fn already_in_trunk(repo: &str) -> InTrunk {
+    // `%(symref)` is what `refs/remotes/origin/HEAD` is, and it is no branch: filtering by a name
+    // ending in `/HEAD` misses it anyway, since for-each-ref shortens that one to `origin`
     let listing = git_soft(
         repo,
-        &["for-each-ref", "--format=%(refname:short) %(objectname)", "refs/heads"],
+        &[
+            "for-each-ref",
+            "--format=%(refname:short)%00%(objectname)%00%(symref)",
+            "refs/heads",
+            "refs/remotes",
+        ],
     );
     // the trunks are part of the question, so a name added to them is asked again rather than
-    // answered out of what was worked out under the old list
+    // answered out of what was worked out under the old list. Beside the listing rather than
+    // appended to it: run together, the line of names was read back as a ref of its own.
     let named = crate::actions::trunks_for(repo);
-    let listing = format!("{listing}\n{}", named.join(" "));
+    let key = format!("{listing}\n{}", named.join(" "));
     let held = IN_TRUNK.get_or_init(|| Mutex::new(HashMap::new()));
     if let Ok(cache) = held.lock() {
-        if let Some((key, answer)) = cache.get(repo) {
-            if *key == listing {
+        if let Some((held_key, answer)) = cache.get(repo) {
+            if *held_key == key {
                 return answer.clone();
             }
         }
@@ -415,15 +427,15 @@ pub fn already_in_trunk(repo: &str) -> InTrunk {
 
     let mut tips: Vec<(String, String)> = Vec::new();
     for line in listing.lines() {
-        let mut parts = line.split_whitespace();
-        if let (Some(name), Some(tip)) = (parts.next(), parts.next()) {
-            tips.push((name.to_string(), tip.to_string()));
+        let parts: Vec<&str> = line.split('\0').collect();
+        if parts.len() == 3 && parts[2].is_empty() && !parts[0].is_empty() && !parts[1].is_empty() {
+            tips.push((parts[0].to_string(), parts[1].to_string()));
         }
     }
 
     let answer = read_in_trunk(repo, &tips, &named);
     if let Ok(mut cache) = held.lock() {
-        cache.insert(repo.to_string(), (listing, answer.clone()));
+        cache.insert(repo.to_string(), (key, answer.clone()));
     }
     answer
 }
@@ -432,13 +444,25 @@ fn read_in_trunk(repo: &str, tips: &[(String, String)], named: &[String]) -> InT
     let mut merged: HashSet<String> = HashSet::new();
     let mut twins: HashMap<String, String> = HashMap::new();
 
-    let is_trunk = |name: &String| {
-        if named.is_empty() {
-            TRUNKS.contains(&name.as_str())
-        } else {
-            named.iter().any(|held| held == name)
-        }
+    // a trunk's copy on a remote is a trunk too, spelled out rather than split on the first
+    // slash, or a local branch called `feature/dev` would be read as one
+    let remotes: Vec<String> = git_soft(repo, &["remote"])
+        .lines()
+        .map(|line| line.trim().to_string())
+        .filter(|line| !line.is_empty())
+        .collect();
+    let bare: Vec<String> = if named.is_empty() {
+        TRUNKS.iter().map(|name| (*name).to_string()).collect()
+    } else {
+        named.to_vec()
     };
+    let mut trunk_names = bare.clone();
+    for remote in &remotes {
+        for name in &bare {
+            trunk_names.push(format!("{remote}/{name}"));
+        }
+    }
+    let is_trunk = |name: &String| trunk_names.iter().any(|held| held == name);
     let trunk_tips: Vec<&str> =
         tips.iter().filter(|(n, _)| is_trunk(n)).map(|(_, h)| h.as_str()).collect();
     // A branch standing on the very commit a trunk stands on has nothing of its own to have
@@ -1085,7 +1109,7 @@ pub fn graph(
     for commit in &mut commits {
         commit.tw = twins.get(&commit.h).cloned();
         for held in &mut commit.refs {
-            if held.k == "local" && merged.contains(&held.n) {
+            if (held.k == "local" || held.k == "remote") && merged.contains(&held.n) {
                 held.m = true;
             }
         }
