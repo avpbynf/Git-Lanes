@@ -12,6 +12,19 @@ still.
 
 ## Unreleased
 
+- **The dates stand against the right edge and are not dragged any more.** What that column
+  holds is `14 min` and `12 Aug`, so the width that fits them is the width, and a grip there
+  offered a choice between the right answer and a wrong one. The one grip left on that side is
+  the one before `author`.
+
+- **The drawing's grip is there only where there is something to fold**, which is a history wide
+  enough to need it. A repository of one lane is drawn in less room than that column is given
+  anyway, and a grip on it moved nothing.
+
+- **The list of people to filter by stops opening with a blank line.** The row of uncommitted
+  work is not a commit and carries no author, and that empty name was being offered as somebody
+  to filter on.
+
 - **The labels on a row are read in one order**, whatever order git handed them over in: the tag
   first, then your own branches, then their copies on a remote. Two rows carrying a branch and
   its remote copy used to print them one way round on one and the other way round on the row

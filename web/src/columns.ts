@@ -1,7 +1,13 @@
 import { useRef, useState, type PointerEvent } from 'react'
 
-/** Which of the fixed columns a hand can move. The subject is what the others leave. */
-export type Column = 'gutter' | 'lanes' | 'who' | 'when'
+/**
+ * Which of the fixed columns a hand can move. The subject is what the others leave.
+ *
+ * The dates are not among them. What that column holds is `14 min` and `12 Aug`, so the width
+ * that fits them is the width that fits them, and a grip there offered a choice between the
+ * right answer and a wrong one. It stands against the right edge at what it measures.
+ */
+export type Column = 'gutter' | 'lanes' | 'who'
 
 /** What a column may not go under. Below this there is nothing left to read in it. */
 const MIN = 24
@@ -32,8 +38,16 @@ function read(): Held {
 export function useColumns() {
   const [held, setHeld] = useState<Held>(read)
   const from = useRef<{ column: Column; x: number; width: number; sign: number } | null>(null)
+  /**
+   * The widths as the drag has them, kept where the settling can read them.
+   *
+   * State lands on a render, and a hand that lets go in the same breath as its last move lets go
+   * before that render: read from state, what is written down is the width before last.
+   */
+  const now = useRef<Held>(held)
 
   const write = (next: Held) => {
+    now.current = next
     setHeld(next)
     localStorage.setItem(KEY, JSON.stringify(next))
   }
@@ -52,16 +66,17 @@ export function useColumns() {
       const start = from.current
       if (!start) return
       const wide = start.width + start.sign * (event.clientX - start.x)
-      setHeld((was) => ({ ...was, [start.column]: Math.max(MIN, Math.round(wide)) }))
+      now.current = { ...now.current, [start.column]: Math.max(MIN, Math.round(wide)) }
+      setHeld(now.current)
     },
     onPointerUp: (event: PointerEvent<HTMLElement>) => {
       if (!from.current) return
       from.current = null
       event.currentTarget.releasePointerCapture(event.pointerId)
-      write(held)
+      write(now.current)
     },
     onDoubleClick: () => {
-      const next = { ...held }
+      const next = { ...now.current }
       delete next[column]
       write(next)
     },

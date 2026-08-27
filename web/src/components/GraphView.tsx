@@ -465,7 +465,7 @@ export function GraphView({
   // never more room than the drawing needs, however much a hand asked for
   const lanes = Math.min(columns.held.lanes ?? LANES, drawn)
   const who = columns.held.who ?? widths.who
-  const when = columns.held.when ?? widths.when
+  const when = widths.when
   // what is scrolled past above the rows, which is what the drawing has to be moved by to stay
   // where the rows it belongs to are
   const above = Math.max(0, scrollTop - HEAD)
@@ -502,17 +502,18 @@ export function GraphView({
           >
             <div style={{ width: drawn, height: 1 }} />
           </div>
-          <span className="edge right" {...columns.grip('lanes', lanes, 1)} />
+          {/* only where there is something to fold: a history of one lane is drawn in less
+              room than this column is given anyway, and a grip on it moves nothing */}
+          {drawn > LANES && <span className="edge right" {...columns.grip('lanes', lanes, 1)} />}
         </div>
         <div className="msg">commit</div>
         <div className="who">
           <span className="edge" {...columns.grip('who', who, -1)} />
           author
         </div>
-        <div className="when">
-          <span className="edge" {...columns.grip('when', when, -1)} />
-          when
-        </div>
+        {/* no grip: what this column holds is `14 min` and `12 Aug`, so the width that fits
+            them is the width, and a hand offered a choice between that and a wrong one */}
+        <div className="when">when</div>
       </div>
 
       <div className="canvas" style={{ height: count * ROW }}>
