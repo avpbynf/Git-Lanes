@@ -767,6 +767,30 @@ def forget(path):
     save_repos([p for p in load_repos() if os.path.normcase(p) != target])
 
 
+def reorder(paths):
+    """The list in the order a hand put it, filtered against what is actually stored.
+
+    What arrives is a list of paths and nothing else, so a stale page cannot drop a
+    repository by leaving it out, nor add one by inventing it: the stored list is what
+    decides membership, and this decides only the order of it. Anything the page did not
+    name keeps its place at the end.
+    """
+    held = load_repos()
+    known = {os.path.normcase(p): p for p in held}
+    ordered = []
+    seen = set()
+    for path in paths:
+        if not isinstance(path, str):
+            continue
+        key = os.path.normcase(path)
+        if key in known and key not in seen:
+            seen.add(key)
+            ordered.append(known[key])
+    ordered.extend(p for p in held if os.path.normcase(p) not in seen)
+    save_repos(ordered)
+    return ordered
+
+
 def describe(path):
     """One line about a repository, tolerant: a moved folder must not break the list."""
     entry = {"path": path, "name": os.path.basename(path) or path}
@@ -921,6 +945,9 @@ class Handler(BaseHTTPRequestHandler):
             elif url.path == "/api/repos/close":
                 forget(body.get("path", ""))
                 self.send_json({"repos": [describe(p) for p in load_repos()]})
+            elif url.path == "/api/repos/order":
+                ordered = reorder(body.get("paths", []))
+                self.send_json({"repos": [describe(p) for p in ordered]})
             else:
                 self.fail(404, "no such endpoint")
         except RuntimeError as err:
