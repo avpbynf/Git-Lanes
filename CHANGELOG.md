@@ -12,6 +12,16 @@ still.
 
 ## Unreleased
 
+- **The labels on a row are read in one order**, whatever order git handed them over in: the tag
+  first, then your own branches, then their copies on a remote. Two rows carrying a branch and
+  its remote copy used to print them one way round on one and the other way round on the row
+  above.
+
+- **A remote branch drops the `origin/` in front of its name**, which the colour of the label was
+  already saying. What the label stands for is spelled out under the cursor, `origin/dev` against
+  `local/dev`, for whoever does not yet read the colours. A repository with two remotes keeps the
+  prefix on all of them, since there the colour says `a remote` rather than which.
+
 - **Both columns open at their narrowest, and stay where you put them.** What a column opened at
   was a guess about your screen and your reading, made before either was known. The window opens
   for the graph now, and a column widened by hand is remembered, so the guess is made once and
