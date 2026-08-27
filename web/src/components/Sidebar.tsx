@@ -219,6 +219,16 @@ export function Sidebar({
    * doing is putting a row somewhere, and the row being there is what says so.
    */
   const [moving, setMoving] = useState<{ path: string; to: number } | null>(null)
+  /**
+   * The order just written down, and the order it was written over.
+   *
+   * Saving and reading the list back are two errands, and between them the list still holds what
+   * it held: dropped without this, a project went back where it came from for the frame or two
+   * that took, and then moved. It is worn only while the list is still the one it replaces, so
+   * anything else that happens to the list, a project opened above all of them included, takes
+   * it off rather than being sorted by it.
+   */
+  const [settled, setSettled] = useState<{ was: string[]; want: string[] } | null>(null)
   /** Where the pointer went down, until it has gone far enough to be a drag rather than a click. */
   const grabbed = useRef<{ path: string; y: number } | null>(null)
   /**
@@ -258,7 +268,16 @@ export function Sidebar({
   }
 
   /** The shelf as the hand is leaving it, which is the shelf itself while no hand is on it. */
-  const arranged = useMemo(() => arrange(shelf, moving), [shelf, moving])
+  const arranged = useMemo(() => {
+    if (moving) return arrange(shelf, moving)
+    if (!settled) return shelf
+    const now = shelf.map((repo) => repo.path)
+    if (now.length !== settled.was.length || now.some((path, at) => path !== settled.was[at])) {
+      return shelf
+    }
+    const wanted = new Map(settled.want.map((path, at) => [path, at]))
+    return [...shelf].sort((one, two) => (wanted.get(one.path) ?? 0) - (wanted.get(two.path) ?? 0))
+  }, [shelf, moving, settled])
 
   /** Which row the pointer is over, by the halves of the rows as they stand at that moment. */
   const placeAt = (y: number) => {
@@ -318,6 +337,7 @@ export function Sidebar({
     if (!held || !put) return
     swallowClick(row)
     const order = arrange(shelf, put).map((repo) => repo.path)
+    setSettled({ was: shelf.map((repo) => repo.path), want: order })
     setMoving(null)
     try {
       await orderRepos(order)
