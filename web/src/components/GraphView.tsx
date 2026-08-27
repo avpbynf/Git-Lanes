@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import type { Commit, Edge, Graph } from '../api'
+import type { Commit, Edge, GitRef, Graph } from '../api'
 import type { TrailMode } from '../settings'
 import {
   DOT, GUTTER, HEAD, LANES, ROW, ago, colorOf, dayLabel, edgePath, edgeSpan, graphWidth, laneX,
@@ -22,6 +22,28 @@ const TWIN = 'the same change under another hash, which is what a replay leaves 
 /** What the two columns on the right are written in, so a width measured is a width drawn. */
 const RULER = '11px "Segoe UI", system-ui, sans-serif'
 
+/** And what a label is written in, which is half a pixel smaller and enough to matter over five. */
+const LABEL = '10.5px "Segoe UI", system-ui, sans-serif'
+
+/** What a label costs beside its text: the padding either side, the border, and the gap after. */
+const LABEL_ROOM = 12
+const LABEL_GAP = 5
+
+/** Never wider than this, however long a name is. The tail is what tells two refs apart. */
+const LABEL_CAP = 190
+
+/**
+ * What the subject keeps whatever a commit carries.
+ *
+ * A row of labels alone names no commit, and a release commit carries four of them: past this
+ * the labels stop taking room and start being counted instead.
+ */
+const SUBJECT_FLOOR = 96
+
+/** What the column that holds them both spends on itself, which `index.css` spells out. */
+const MSG_PAD = 12
+const MSG_GAP = 8
+
 const ruler = document.createElement('canvas').getContext('2d')
 
 /**
@@ -33,13 +55,36 @@ const ruler = document.createElement('canvas').getContext('2d')
  */
 const measured = new Map<string, number>()
 
-function widthOf(value: string): number {
-  const held = measured.get(value)
+function widthOf(value: string, font = RULER): number {
+  const key = `${font}\u0000${value}`
+  const held = measured.get(key)
   if (held !== undefined) return held
-  if (ruler) ruler.font = RULER
+  if (ruler) ruler.font = font
   const width = ruler ? ruler.measureText(value).width : 0
-  measured.set(value, width)
+  measured.set(key, width)
   return width
+}
+
+/**
+ * As many labels whole as the room holds, and a count for the rest.
+ *
+ * What used to happen here was that every label gave up its head at once, so a release commit
+ * read `...v` `...1-beta` `...in/main`: five labels nobody could tell apart, where four whole
+ * ones and a `+1` say the same thing and can be read. What is left out is named in the tooltip
+ * of that count, and stands whole in the tree beside it.
+ */
+function fitRefs(refs: GitRef[], room: number): [GitRef[], GitRef[]] {
+  const widths = refs.map((ref) => Math.min(widthOf(ref.n, LABEL) + LABEL_ROOM, LABEL_CAP))
+  const whole = widths.reduce((sum, width) => sum + width + LABEL_GAP, -LABEL_GAP)
+  if (whole <= room) return [refs, []]
+
+  let taken = 0
+  let used = widthOf(`+${refs.length}`, LABEL) + LABEL_ROOM
+  while (taken < refs.length && used + widths[taken] + LABEL_GAP <= room) {
+    used += widths[taken] + LABEL_GAP
+    taken += 1
+  }
+  return [refs.slice(0, taken), refs.slice(taken)]
 }
 
 /**
@@ -53,7 +98,7 @@ function widthOf(value: string): number {
  */
 function roomFor(values: string[], share: number): number {
   if (!ruler || !values.length) return 0
-  const widths = values.map(widthOf).sort((a, b) => a - b)
+  const widths = values.map((value) => widthOf(value)).sort((a, b) => a - b)
   return Math.ceil(widths[Math.min(widths.length - 1, Math.floor(widths.length * share))])
 }
 
@@ -159,6 +204,8 @@ export function GraphView({
   const columns = useColumns()
   const [scrollTop, setScrollTop] = useState(0)
   const [viewport, setViewport] = useState(800)
+  /** How wide the rows are, which is what says how many labels one of them holds. */
+  const [across, setAcross] = useState(1000)
   // the row the pointer is on, which is what says which lane to follow
   const [hovered, setHovered] = useState<number | null>(null)
   // how far the drawing is scrolled inside its own column, when it is wider than the room given
@@ -170,9 +217,13 @@ export function GraphView({
   useEffect(() => {
     const element = scroller.current
     if (!element) return
-    const observer = new ResizeObserver(() => setViewport(element.clientHeight))
+    const measure = () => {
+      setViewport(element.clientHeight)
+      setAcross(element.clientWidth)
+    }
+    const observer = new ResizeObserver(measure)
     observer.observe(element)
-    setViewport(element.clientHeight)
+    measure()
     return () => observer.disconnect()
   }, [])
 
@@ -300,6 +351,10 @@ export function GraphView({
   // what is scrolled past above the rows, which is what the drawing has to be moved by to stay
   // where the rows it belongs to are
   const above = Math.max(0, scrollTop - HEAD)
+  /* what the subject and the labels share, once the four measured columns have taken theirs.
+     The subject's floor is taken out of it here, so a label never has the last of the room */
+  const shared = across - gutter - lanes - (who + 32) - (when + 18) - MSG_PAD
+  const forRefs = Math.max(0, shared - SUBJECT_FLOOR - MSG_GAP)
 
   return (
     <div
@@ -436,6 +491,12 @@ export function GraphView({
             const newDay = !previous || dayLabel(new Date(previous.t)) !== label
             // HEAD wears its halo on the dot, so a label saying so would say it twice
             const carried = commit.refs.filter((ref) => ref.k !== 'head')
+            // the merged badge stands beside them and takes its room from the same purse
+            const badged = carried.some((ref) => ref.m)
+            const [shownRefs, restRefs] = fitRefs(
+              carried,
+              forRefs - (badged ? widthOf('merged', LABEL) + LABEL_ROOM + LABEL_GAP : 0),
+            )
             // the topmost row has the bar above it, and a rule there reads as a thick border
             const className = [
               'row',
@@ -471,7 +532,7 @@ export function GraphView({
                   )}
                   {carried.length > 0 && (
                     <span className="refs">
-                      {carried.map((ref) => (
+                      {shownRefs.map((ref) => (
                         <span key={ref.k + ref.n} className="held">
                           <span
                             className={`ref ${ref.k}`}
@@ -481,6 +542,14 @@ export function GraphView({
                           </span>
                         </span>
                       ))}
+                      {restRefs.length > 0 && (
+                        <span
+                          className="mark more"
+                          title={restRefs.map((ref) => ref.n).join('\n')}
+                        >
+                          +{restRefs.length}
+                        </span>
+                      )}
                       {/* once for the row rather than once per label: it answers of the commit,
                           and two branches left on one commit are given the same answer by
                           construction, so a second badge repeats the first word for word */}

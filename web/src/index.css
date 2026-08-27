@@ -392,7 +392,9 @@ button:disabled { cursor: default; color: var(--faint); }
 .head .who { padding-left: 22px; }
 .head .when { text-align: right; padding-right: 12px; }
 
-/* six pixels to catch, drawn as the line the columns are separated by anyway */
+/* six pixels to catch, and one drawn down the middle of them.
+   The rows themselves carry no such line, on purpose: a rule down every row of a history is a
+   table, and this is a graph. Here it says where to put the pointer, and nowhere else */
 .head .edge {
   position: absolute;
   top: 0;
@@ -403,8 +405,22 @@ button:disabled { cursor: default; color: var(--faint); }
   touch-action: none;
 }
 
+.head .edge::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 5px;
+  bottom: 5px;
+  width: 1px;
+  background: var(--line);
+}
+
 .head .edge.right { left: auto; right: -3px; }
 .head .edge:hover { background: var(--accent); opacity: 0.35; }
+
+/* under the pointer it is the whole six pixels that answer, so the hairline would only muddy
+   the colour they are painted */
+.head .edge:hover::after { background: none; }
 .canvas { position: relative; min-width: min-content; }
 
 /* the room the drawing is given, which is the column it lives in. Nothing here answers the
@@ -514,12 +530,13 @@ button:disabled { cursor: default; color: var(--faint); }
 /* the refs stand against the author rather than in front of the message, which
    used to push every subject a different distance from the left */
 /* the refs keep their room and the subject gives way, since a label is what
-   tells two commits of the same afternoon apart. Never past half the column */
+   tells two commits of the same afternoon apart. How many of them are drawn is measured in
+   GraphView against the room the subject leaves, so nothing here has to cap it: what does not
+   fit is counted rather than squeezed */
 .refs {
   display: flex;
   flex: none;
   gap: 5px;
-  max-width: 55%;
   overflow: hidden;
 }
 
@@ -542,6 +559,10 @@ button:disabled { cursor: default; color: var(--faint); }
 
 /* a ref and what is said about it travel together, so neither is cut from the other */
 .held { display: flex; gap: 4px; min-width: 0; }
+
+/* the labels that were left out, which the tree beside it holds whole. Quieter than the badge
+   it borrows from, since it names nothing itself */
+.mark.more { background: none; color: var(--faint); border: 1px solid var(--line); }
 
 /* not a ref: what a trunk says about one. Filled, where a ref is outlined, so the two do not
    read as two branches */
