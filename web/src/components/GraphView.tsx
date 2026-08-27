@@ -27,6 +27,9 @@ const LABEL = '10.5px "Segoe UI", system-ui, sans-serif'
 
 /** What a label costs beside its text: the padding either side, the border, and the gap after. */
 const LABEL_ROOM = 12
+
+/** And what the dot on a pushed branch costs beside that, itself and the gap before it. */
+const DOT_ROOM = 8
 const LABEL_GAP = 5
 
 /** Never wider than this, however long a name is. The tail is what tells two refs apart. */
@@ -78,12 +81,24 @@ function widthOf(value: string, font = RULER): number {
  * what is yours, then the copy of it on a remote. That is also the order they are given up in
  * when there is no room for all of them.
  */
-const RANK: Record<string, number> = { tag: 0, local: 1, remote: 2, shallow: 3 }
+const RANK: Record<string, number> = { tag: 0, both: 1, local: 1, remote: 2, shallow: 3 }
 
-function inOrder(refs: GitRef[]): GitRef[] {
-  return [...refs].sort(
-    (one, two) => (RANK[one.k] ?? 9) - (RANK[two.k] ?? 9) || one.n.localeCompare(two.n),
-  )
+/**
+ * One label as a row draws it, which is not always one ref.
+ *
+ * A branch you have pushed is two refs standing on the same commit under the same name, and the
+ * row printed both: `dashboard-facts dashboard-facts`, once in each colour. It is one label now,
+ * green like the branch it is, with a blue dot saying the remote has it too. Which of the three
+ * a label is remains the thing worth seeing at a glance, since a branch that is only local and a
+ * branch that is only on the remote are two different situations to be in.
+ */
+interface Chip {
+  key: string
+  text: string
+  kind: 'tag' | 'local' | 'remote' | 'both' | 'shallow'
+  title: string
+  /** Whether a trunk already holds it, which the row says once for all of them. */
+  merged: boolean
 }
 
 /**
@@ -110,6 +125,59 @@ function soleRemote(commits: Commit[]): string | null {
 }
 
 /**
+ * The labels one row carries, in the order it reads them and with its pairs joined.
+ *
+ * A local and a remote pair only where the remote's own name has been taken off, which is to say
+ * where there is one remote to take off: with two, `origin/dev` and `upstream/dev` are two
+ * different places a branch has got to and joining either to the local would hide that.
+ */
+function chipsOf(refs: GitRef[], only: string | null): Chip[] {
+  const short = (ref: GitRef) =>
+    only && ref.k === 'remote' && ref.n.startsWith(`${only}/`) ? ref.n.slice(only.length + 1) : ref.n
+  const spelt = (ref: GitRef) =>
+    ref.k === 'local' ? `local/${ref.n}` : ref.k === 'tag' ? `tag/${ref.n}` : ref.n
+
+  const locals = new Map(refs.filter((ref) => ref.k === 'local').map((ref) => [ref.n, ref]))
+  const joined = new Set<string>()
+  const chips: Chip[] = []
+
+  for (const ref of refs) {
+    if (ref.k === 'shallow') {
+      chips.push({ key: 'shallow', text: ref.n, kind: 'shallow', title: SHALLOW, merged: false })
+      continue
+    }
+    if (ref.k === 'remote') {
+      const name = short(ref)
+      const mate = only ? locals.get(name) : undefined
+      if (mate) {
+        joined.add(name)
+        chips.push({
+          key: `both:${name}`,
+          text: name,
+          kind: 'both',
+          title: `${spelt(mate)} and ${ref.n}`,
+          merged: Boolean(mate.m || ref.m),
+        })
+        continue
+      }
+      chips.push({ key: `r:${ref.n}`, text: name, kind: 'remote', title: ref.n, merged: Boolean(ref.m) })
+      continue
+    }
+    chips.push({
+      key: `${ref.k}:${ref.n}`,
+      text: ref.n,
+      kind: ref.k === 'tag' ? 'tag' : 'local',
+      title: spelt(ref),
+      merged: Boolean(ref.m),
+    })
+  }
+
+  return chips
+    .filter((chip) => !(chip.kind === 'local' && joined.has(chip.text)))
+    .sort((one, two) => RANK[one.kind] - RANK[two.kind] || one.text.localeCompare(two.text))
+}
+
+/**
  * As many labels whole as the room holds, and a count for the rest.
  *
  * What used to happen here was that every label gave up its head at once, so a release commit
@@ -117,8 +185,12 @@ function soleRemote(commits: Commit[]): string | null {
  * ones and a `+1` say the same thing and can be read. What is left out is named in the tooltip
  * of that count, and stands whole in the tree beside it.
  */
-function fitRefs(refs: GitRef[], room: number, label: (ref: GitRef) => string): [GitRef[], GitRef[]] {
-  const widths = refs.map((ref) => Math.min(widthOf(label(ref), LABEL) + LABEL_ROOM, LABEL_CAP))
+function fitRefs(refs: Chip[], room: number): [Chip[], Chip[]] {
+  const widths = refs.map(
+    (chip) =>
+      Math.min(widthOf(chip.text, LABEL) + LABEL_ROOM, LABEL_CAP) +
+      (chip.kind === 'both' ? DOT_ROOM : 0),
+  )
   const whole = widths.reduce((sum, width) => sum + width + LABEL_GAP, -LABEL_GAP)
   if (whole <= room) return [refs, []]
 
@@ -358,23 +430,6 @@ export function GraphView({
 
   const only = useMemo(() => soleRemote(graph.commits), [graph])
 
-  /** What a label reads, which drops the remote's name where the colour is already saying it. */
-  const nameOf = (ref: GitRef) =>
-    only && ref.k === 'remote' && ref.n.startsWith(`${only}/`) ? ref.n.slice(only.length + 1) : ref.n
-
-  /**
-   * And what it says under the cursor, which spells out what the colour was standing for.
-   *
-   * `local/dev` is not how git spells a branch, and it is not meant to be: what it answers is
-   * somebody who does not yet read colours as this window means them.
-   */
-  const wholeOf = (ref: GitRef) => {
-    if (ref.k === 'shallow') return SHALLOW
-    if (ref.k === 'local') return `local/${ref.n}`
-    if (ref.k === 'tag') return `tag/${ref.n}`
-    return ref.n
-  }
-
   // under the pointer, or held on the commit last clicked, or nowhere at all
   const walking = useMemo(() => {
     if (trail === 'off') return null
@@ -553,13 +608,12 @@ export function GraphView({
             const previous = graph.commits[first + index - 1]
             const newDay = !previous || dayLabel(new Date(previous.t)) !== label
             // HEAD wears its halo on the dot, so a label saying so would say it twice
-            const carried = inOrder(commit.refs.filter((ref) => ref.k !== 'head'))
+            const carried = chipsOf(commit.refs.filter((ref) => ref.k !== 'head'), only)
             // the merged badge stands beside them and takes its room from the same purse
-            const badged = carried.some((ref) => ref.m)
+            const badged = carried.some((chip) => chip.merged)
             const [shownRefs, restRefs] = fitRefs(
               carried,
               forRefs - (badged ? widthOf('merged', LABEL) + LABEL_ROOM + LABEL_GAP : 0),
-              nameOf,
             )
             // the topmost row has the bar above it, and a rule there reads as a thick border
             const className = [
@@ -596,17 +650,21 @@ export function GraphView({
                   )}
                   {carried.length > 0 && (
                     <span className="refs">
-                      {shownRefs.map((ref) => (
-                        <span key={ref.k + ref.n} className="held">
-                          <span className={`ref ${ref.k}`} title={wholeOf(ref)}>
-                            {nameOf(ref)}
+                      {shownRefs.map((chip) => (
+                        <span key={chip.key} className="held">
+                          {/* the dot is a sibling of the text rather than part of it: the name
+                              is read right to left so a narrow column loses its head, and a
+                              neutral thing put in that run comes out at the other end */}
+                          <span className={`ref ${chip.kind}`} title={chip.title}>
+                            <span className="txt">{chip.text}</span>
+                            {chip.kind === 'both' && <i className="also" />}
                           </span>
                         </span>
                       ))}
                       {restRefs.length > 0 && (
                         <span
                           className="mark more"
-                          title={restRefs.map((ref) => wholeOf(ref)).join('\n')}
+                          title={restRefs.map((chip) => chip.title).join('\n')}
                         >
                           +{restRefs.length}
                         </span>
@@ -614,9 +672,7 @@ export function GraphView({
                       {/* once for the row rather than once per label: it answers of the commit,
                           and two branches left on one commit are given the same answer by
                           construction, so a second badge repeats the first word for word */}
-                      {carried.some((ref) => ref.m) && (
-                        <span className="mark" title={MERGED}>merged</span>
-                      )}
+                      {badged && <span className="mark" title={MERGED}>merged</span>}
                     </span>
                   )}
                 </div>

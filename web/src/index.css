@@ -541,17 +541,34 @@ button:disabled { cursor: default; color: var(--faint); }
 }
 
 .ref {
+  display: inline-flex;
+  align-items: center;
   border-radius: 3px;
   padding: 0 5px;
   max-width: 190px;
   overflow: hidden;
-  text-overflow: ellipsis;
   font-size: 10.5px;
   line-height: 15px;
   border: 1px solid;
-  /* a name too long gives up its head: the tail is what tells two refs apart */
+}
+
+/* a name too long gives up its head: the tail is what tells two refs apart */
+.ref .txt {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   direction: rtl;
   text-align: left;
+}
+
+/* the remote has this branch too, said on the label rather than beside it in a second one */
+.ref .also {
+  flex: none;
+  width: 4px;
+  height: 4px;
+  margin-left: 4px;
+  border-radius: 50%;
+  background: var(--accent);
 }
 
 /* not a ref but carried like one: where a shallow clone stops holding history */
@@ -576,7 +593,11 @@ button:disabled { cursor: default; color: var(--faint); }
   color: var(--bg);
 }
 
-.ref.local { color: var(--add); border-color: var(--add); }
+/* where a branch has got to, at a glance: yours alone, theirs alone, or the same commit under
+   both names. The third stays the green of the branch it is and takes a dot in the other colour,
+   rather than a fourth colour nobody could place or two colours in one stroke */
+.ref.local,
+.ref.both { color: var(--add); border-color: var(--add); }
 .ref.remote { color: var(--accent); border-color: var(--accent); }
 .ref.tag { color: var(--tag); border-color: var(--tag); }
 
