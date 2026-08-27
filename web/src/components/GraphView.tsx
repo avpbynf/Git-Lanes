@@ -253,16 +253,16 @@ function linksOf(graph: Graph): Links {
 }
 
 /**
- * The path a commit came by: down its first parents to the root, and up the line that carried on
- * from it.
+ * The path a commit came by: down its first parents, from the commit clicked to the root.
+ *
+ * It ran up the line that carried on from it as well, and that is somebody else's history. What
+ * a click asks is how this commit got here, and the answer starts where the asking did: nothing
+ * above the row clicked is lit.
  *
  * Walked along the parent links and not along the lane, which is what a lane cannot answer. A
  * branch of one commit sits alone in its own lane, and lighting that lane lit one segment and
  * stopped at the elbow, exactly where the interesting part starts. The path crosses the elbow
  * and carries on down whatever lane the history took.
- *
- * Upwards it follows the commits this one is the first parent of. Where there are several, the
- * one sharing this lane is the line carrying on, and the others are branches leaving it.
  */
 function pathOf(graph: Graph, links: Links, row: number): Set<Edge> {
   const path = new Set<Edge>()
@@ -275,21 +275,6 @@ function pathOf(graph: Graph, links: Links, row: number): Set<Edge> {
     const next = first === undefined ? undefined : links.rowOf.get(first)
     if (next === undefined) break
     const edge = between(at, next)
-    if (!edge || path.has(edge)) break
-    path.add(edge)
-    at = next
-  }
-
-  at = row
-  for (;;) {
-    const held = links.born.get(at)
-    if (!held?.length) break
-    const lane = graph.commits[at]?.lane
-    const next =
-      held.find((one) => graph.commits[one]?.lane === lane) ??
-      (held.length === 1 ? held[0] : undefined)
-    if (next === undefined) break
-    const edge = between(next, at)
     if (!edge || path.has(edge)) break
     path.add(edge)
     at = next

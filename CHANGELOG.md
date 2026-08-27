@@ -12,6 +12,11 @@ still.
 
 ## Unreleased
 
+- **The path lit on a click ends on the commit you clicked.** It used to run down the whole
+  history behind it as well, which every commit came by and which said nothing about the one you
+  picked: lighting it lit most of the graph. What a click asks is where this commit went, and the
+  answer stops where the asking did.
+
 - **The dates stand against the right edge and are not dragged any more.** What that column
   holds is `14 min` and `12 Aug`, so the width that fits them is the width, and a grip there
   offered a choice between the right answer and a wrong one. The one grip left on that side is
