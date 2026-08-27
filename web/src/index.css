@@ -702,6 +702,10 @@ button:disabled { cursor: default; color: var(--faint); }
 .project:hover { background: var(--hover); }
 .project.on { background: var(--sel); }
 
+/* a row being moved is where it would land already, so what says it is being moved is that it
+   is the one under the hand rather than any mark drawn on it */
+.project.lifted { opacity: 0.55; }
+
 .project .body {
   flex: 1;
   min-width: 0;

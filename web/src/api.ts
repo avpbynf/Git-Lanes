@@ -337,3 +337,15 @@ export const closeRepo = (path: string) =>
   desktop
     ? (desktop('close_repo', { path }) as Promise<RepoEntry[]>).then((repos) => ({ repos }))
     : post<{ repos: RepoEntry[] }>('/api/repos/close', { path })
+
+/**
+ * The list in the order a hand put it.
+ *
+ * Paths and nothing else, so what a backend does with them is decide an order rather than a
+ * membership: one this page did not name is kept rather than dropped, and one it invented is
+ * ignored. Which is what makes it safe to send from a list that may be a moment out of date.
+ */
+export const orderRepos = (paths: string[]) =>
+  desktop
+    ? (desktop('order_repos', { paths }) as Promise<RepoEntry[]>).then((repos) => ({ repos }))
+    : post<{ repos: RepoEntry[] }>('/api/repos/order', { paths })
