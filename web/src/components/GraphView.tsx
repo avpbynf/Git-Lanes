@@ -66,6 +66,50 @@ function widthOf(value: string, font = RULER): number {
 }
 
 /**
+ * The order labels are read in, which is not the order git hands them over in.
+ *
+ * A commit's refs come out of git's own decoration, and that order is neither sorted nor stable
+ * between one commit and the next: two rows carrying a branch and its remote copy printed them
+ * one way round on one row and the other way round on the row above, which is a thing the eye
+ * catches and cannot use. Fixed here rather than in either backend, since what it settles is how
+ * a row reads and both backends hand over the same shapes.
+ *
+ * A tag first, because it names a version and a branch names whoever is standing on it. Then
+ * what is yours, then the copy of it on a remote. That is also the order they are given up in
+ * when there is no room for all of them.
+ */
+const RANK: Record<string, number> = { tag: 0, local: 1, remote: 2, shallow: 3 }
+
+function inOrder(refs: GitRef[]): GitRef[] {
+  return [...refs].sort(
+    (one, two) => (RANK[one.k] ?? 9) - (RANK[two.k] ?? 9) || one.n.localeCompare(two.n),
+  )
+}
+
+/**
+ * The one remote every remote ref in this repository is on, or nothing where there are several.
+ *
+ * A label says which remote by being drawn in the colour of one, so `origin/` in front of the
+ * name is the same fact twice and eleven characters of a narrow column. Where a repository has
+ * two remotes the prefix is the only thing telling `origin/dev` from `upstream/dev`, and it
+ * stays: what the colour says there is `a remote`, not `which`.
+ */
+function soleRemote(commits: Commit[]): string | null {
+  let only: string | null = null
+  for (const commit of commits) {
+    for (const ref of commit.refs) {
+      if (ref.k !== 'remote') continue
+      const slash = ref.n.indexOf('/')
+      if (slash < 1) return null
+      const remote = ref.n.slice(0, slash)
+      if (only === null) only = remote
+      else if (only !== remote) return null
+    }
+  }
+  return only
+}
+
+/**
  * As many labels whole as the room holds, and a count for the rest.
  *
  * What used to happen here was that every label gave up its head at once, so a release commit
@@ -73,8 +117,8 @@ function widthOf(value: string, font = RULER): number {
  * ones and a `+1` say the same thing and can be read. What is left out is named in the tooltip
  * of that count, and stands whole in the tree beside it.
  */
-function fitRefs(refs: GitRef[], room: number): [GitRef[], GitRef[]] {
-  const widths = refs.map((ref) => Math.min(widthOf(ref.n, LABEL) + LABEL_ROOM, LABEL_CAP))
+function fitRefs(refs: GitRef[], room: number, label: (ref: GitRef) => string): [GitRef[], GitRef[]] {
+  const widths = refs.map((ref) => Math.min(widthOf(label(ref), LABEL) + LABEL_ROOM, LABEL_CAP))
   const whole = widths.reduce((sum, width) => sum + width + LABEL_GAP, -LABEL_GAP)
   if (whole <= room) return [refs, []]
 
@@ -312,6 +356,25 @@ export function GraphView({
 
   const links = useMemo(() => linksOf(graph), [graph])
 
+  const only = useMemo(() => soleRemote(graph.commits), [graph])
+
+  /** What a label reads, which drops the remote's name where the colour is already saying it. */
+  const nameOf = (ref: GitRef) =>
+    only && ref.k === 'remote' && ref.n.startsWith(`${only}/`) ? ref.n.slice(only.length + 1) : ref.n
+
+  /**
+   * And what it says under the cursor, which spells out what the colour was standing for.
+   *
+   * `local/dev` is not how git spells a branch, and it is not meant to be: what it answers is
+   * somebody who does not yet read colours as this window means them.
+   */
+  const wholeOf = (ref: GitRef) => {
+    if (ref.k === 'shallow') return SHALLOW
+    if (ref.k === 'local') return `local/${ref.n}`
+    if (ref.k === 'tag') return `tag/${ref.n}`
+    return ref.n
+  }
+
   // under the pointer, or held on the commit last clicked, or nowhere at all
   const walking = useMemo(() => {
     if (trail === 'off') return null
@@ -490,12 +553,13 @@ export function GraphView({
             const previous = graph.commits[first + index - 1]
             const newDay = !previous || dayLabel(new Date(previous.t)) !== label
             // HEAD wears its halo on the dot, so a label saying so would say it twice
-            const carried = commit.refs.filter((ref) => ref.k !== 'head')
+            const carried = inOrder(commit.refs.filter((ref) => ref.k !== 'head'))
             // the merged badge stands beside them and takes its room from the same purse
             const badged = carried.some((ref) => ref.m)
             const [shownRefs, restRefs] = fitRefs(
               carried,
               forRefs - (badged ? widthOf('merged', LABEL) + LABEL_ROOM + LABEL_GAP : 0),
+              nameOf,
             )
             // the topmost row has the bar above it, and a rule there reads as a thick border
             const className = [
@@ -534,18 +598,15 @@ export function GraphView({
                     <span className="refs">
                       {shownRefs.map((ref) => (
                         <span key={ref.k + ref.n} className="held">
-                          <span
-                            className={`ref ${ref.k}`}
-                            title={ref.k === 'shallow' ? SHALLOW : undefined}
-                          >
-                            {ref.n}
+                          <span className={`ref ${ref.k}`} title={wholeOf(ref)}>
+                            {nameOf(ref)}
                           </span>
                         </span>
                       ))}
                       {restRefs.length > 0 && (
                         <span
                           className="mark more"
-                          title={restRefs.map((ref) => ref.n).join('\n')}
+                          title={restRefs.map((ref) => wholeOf(ref)).join('\n')}
                         >
                           +{restRefs.length}
                         </span>
