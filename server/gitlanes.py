@@ -223,6 +223,16 @@ def already_in_trunk(repo):
 
 def read_in_trunk(repo, tips, trunks, topics):
     trunk_tips = [tips[name] for name in trunks]
+
+    # A branch standing on the very commit a trunk stands on has nothing of its own to have been
+    # merged: it was made and left, or the trunk has not moved since. The row already carries the
+    # trunk's own label beside it, so `merged` there says nothing that is not already on screen,
+    # and it says the one thing that is not true.
+    standing = set(trunk_tips)
+    topics = [name for name in topics if tips[name] not in standing]
+    if not topics:
+        return set(), {}
+
     topic_tips = [tips[name] for name in topics]
 
     # every commit the topic branches hold and no trunk does, with its parents, so which branch
