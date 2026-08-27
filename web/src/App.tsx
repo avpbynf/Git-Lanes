@@ -195,9 +195,14 @@ export default function App() {
     [graph, selected],
   )
 
-  // who wrote what is on screen, which is the only list of authors worth offering
+  /**
+   * Who wrote what is on screen, which is the only list of authors worth offering.
+   *
+   * The row of uncommitted work is not a commit and carries no author, and that empty name came
+   * out as an empty line at the top of the list, under `anyone` and above the first person.
+   */
   const authors = useMemo(
-    () => [...new Set(graph?.commits.map((commit) => commit.an) ?? [])].sort(),
+    () => [...new Set(graph?.commits.map((commit) => commit.an) ?? [])].filter(Boolean).sort(),
     [graph],
   )
 
