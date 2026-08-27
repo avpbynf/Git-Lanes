@@ -12,6 +12,11 @@ still.
 
 ## Unreleased
 
+- **The way into a folder is a `+` beside the word projects**, rather than a line under the last
+  one. It was the one thing in that drawer that moved every time a project was added, and it
+  belongs to the drawer rather than to the list: it stays there with the drawer folded shut. An
+  empty list asks for a folder in its own words instead of reporting that it is empty.
+
 - **The projects are put in the order you want them in**, by taking a row and dropping it where
   it belongs. The list has always been most recently opened first, which is an order nobody
   chose; a new project still lands on top, and everything else stays where you left it. Nothing

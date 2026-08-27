@@ -690,6 +690,28 @@ button:disabled { cursor: default; color: var(--faint); }
 .part + .part { margin-top: 6px; }
 .part-head .name { color: var(--dim); font-weight: 600; }
 
+/* the drawer's own row: what folds it, and the one way in that belongs to it rather than to a
+   list that may be empty. Where the way in used to sit was under the last project, which is the
+   one place it moves every time a project is added */
+.part-row { display: flex; align-items: center; }
+.part-row .twig { flex: 1; min-width: 0; }
+
+.part-row .add {
+  flex: none;
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 2px 8px;
+  color: var(--faint);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.part-row .add:hover { color: var(--accent); }
+
+/* the only thing in the drawer when nothing has been opened, so it asks rather than reports */
+.empty.asks { font-style: italic; }
+
 /* a project row: the name, what it is standing on, and a way to forget it */
 
 /* 24 plus the 8 the body adds lands a project name where a branch name lands */
@@ -739,8 +761,6 @@ button:disabled { cursor: default; color: var(--faint); }
 .project:hover .x { visibility: visible; }
 .project .x:hover { color: var(--del); }
 
-.twig.add { color: var(--dim); padding-left: 32px; }
-.twig.add:hover { color: var(--accent); }
 
 .byhand { display: flex; gap: 6px; padding: 4px 8px 4px 32px; }
 .byhand input { flex: 1; min-width: 0; }
