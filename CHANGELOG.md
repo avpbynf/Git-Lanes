@@ -12,6 +12,14 @@ still.
 
 ## Unreleased
 
+- **Both columns open at their narrowest, and stay where you put them.** What a column opened at
+  was a guess about your screen and your reading, made before either was known. The window opens
+  for the graph now, and a column widened by hand is remembered, so the guess is made once and
+  never against you.
+
+- **The projects drawer stops counting itself.** A count earns its place on a drawer that holds a
+  hundred branches and is shut; on a list of three you can see, it says what you already read.
+
 - **The way into a folder is a `+` beside the word projects**, rather than a line under the last
   one. It was the one thing in that drawer that moved every time a project was added, and it
   belongs to the drawer rather than to the list: it stays there with the drawer folded shut. An
