@@ -133,6 +133,35 @@ async fn close_repo(path: String) -> Result<Vec<RepoEntry>, String> {
     .await
 }
 
+/// The list in the order a hand put it.
+///
+/// What arrives is a list of paths and nothing else, so a stale page cannot drop a repository
+/// by leaving it out, nor add one by inventing it: the stored list decides membership and this
+/// decides only its order. Anything the page did not name keeps its place at the end.
+#[tauri::command]
+async fn order_repos(paths: Vec<String>) -> Result<Vec<RepoEntry>, String> {
+    off_thread(move || {
+        let held = load_registry();
+        let mut ordered: Vec<String> = Vec::with_capacity(held.len());
+        for path in &paths {
+            if let Some(known) = held.iter().find(|known| same_path(known, path)) {
+                if !ordered.iter().any(|taken| same_path(taken, known)) {
+                    ordered.push(known.clone());
+                }
+            }
+        }
+        let tail: Vec<String> = held
+            .iter()
+            .filter(|known| !ordered.iter().any(|taken| same_path(taken, known)))
+            .cloned()
+            .collect();
+        ordered.extend(tail);
+        save_registry(&ordered);
+        Ok(ordered.iter().map(|known| git::describe(known)).collect())
+    })
+    .await
+}
+
 #[tauri::command]
 async fn discover(root: String) -> Result<Vec<RepoEntry>, String> {
     off_thread(move || {
@@ -229,6 +258,7 @@ fn main() {
             pick_folder,
             open_repo,
             close_repo,
+            order_repos,
             discover,
             graph,
             branches,
