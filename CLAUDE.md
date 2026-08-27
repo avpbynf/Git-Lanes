@@ -152,10 +152,12 @@ tag as a starting point exactly as it reads a branch, so nothing distinguishes t
 long spelling is also what tells a tag `dev` from a branch `dev`, and what keeps a ref named
 like an option from being read as one. A scope that does not spell `refs/...` is no scope.
 
-**The two side panels are the same thing mirrored.** Both are columns, both open at `WIDTH` and
-stop at `MIN_WIDTH`, both are dragged by their inner edge through `usePanelWidth`, both are turned
-off in the menu. Those two numbers live in `panel.ts` and are one number each on purpose: two
-columns that opened at different widths read as two different kinds of thing. What the menu holds
+**The two side panels are the same thing mirrored.** Both are columns, both open at `MIN_WIDTH`
+and stop there too, both are dragged by their inner edge through `usePanelWidth`, both are turned
+off in the menu. That number lives in `panel.ts` and is one number on purpose, twice over: two
+columns that opened at different widths read as two different kinds of thing, and a column that
+opened wider than it can be pulled is a guess about somebody's screen made before it is known.
+A width dragged by hand is remembered, so the guess is only ever made once. What the menu holds
 is what someone decides once; what a panel header holds is what someone decides while looking at
 it. The commit panel has a third state, gone until a click and closed by its cross, which is a
 choice in the menu rather than where the window starts.

@@ -5,7 +5,7 @@ import {
 } from '../api'
 import { useActions } from '../actions'
 import { since } from '../lanes'
-import { MIN_WIDTH, usePanelWidth, WIDTH } from '../panel'
+import { MIN_WIDTH, usePanelWidth } from '../panel'
 import type { PanelMode } from '../settings'
 
 const CLOSE = (
@@ -98,7 +98,7 @@ export function CommitPanel({ repo, hash, known, beat, mode, onClose }: Props) {
   const [onRun, setOnRun] = useState<string | null>(null)
   /** What the second tab is called, which is the command's own name and outlives its run. */
   const [ran, setRan] = useState<string | null>(null)
-  const { width, grip } = usePanelWidth('panel', WIDTH, MIN_WIDTH, 'right')
+  const { width, grip } = usePanelWidth('panel', MIN_WIDTH, 'right')
   const doing = useActions(repo, beat)
   const tail = useRef<HTMLDivElement>(null)
   const column = useRef<HTMLDivElement>(null)
