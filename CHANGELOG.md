@@ -19,9 +19,9 @@ still.
 
 - **A branch says where it has got to by its colour, once.** A branch you have pushed used to be
   two labels of the same name side by side, one in each colour. It is one label now, green like
-  the branch it is, with a blue dot saying the remote has it too. The three cases stay apart:
-  green alone is a branch only you have, blue alone is one the remote has moved past you on, and
-  green with the dot is a branch that agrees with its copy. The remote's name comes off the front
+  the branch it is, with a dot saying the remote has it too. The three cases stay apart: green
+  alone is a branch only you have, blue alone is one the remote has moved past you on, and green
+  with the dot is a branch that agrees with its copy. The remote's name comes off the front
   of the label as well, since the colour was already saying it.
 
   What a label stands for is spelled out under the cursor, `local/main and origin/main`, for

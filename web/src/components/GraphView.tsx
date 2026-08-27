@@ -88,8 +88,8 @@ const RANK: Record<string, number> = { tag: 0, both: 1, local: 1, remote: 2, sha
  *
  * A branch you have pushed is two refs standing on the same commit under the same name, and the
  * row printed both: `dashboard-facts dashboard-facts`, once in each colour. It is one label now,
- * green like the branch it is, with a blue dot saying the remote has it too. Which of the three
- * a label is remains the thing worth seeing at a glance, since a branch that is only local and a
+ * green like the branch it is, with a dot saying the remote has it too. Which of the three a
+ * label is remains the thing worth seeing at a glance, since a branch that is only local and a
  * branch that is only on the remote are two different situations to be in.
  */
 interface Chip {
