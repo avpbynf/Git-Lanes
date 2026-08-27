@@ -17,10 +17,17 @@ still.
   its remote copy used to print them one way round on one and the other way round on the row
   above.
 
-- **A remote branch drops the `origin/` in front of its name**, which the colour of the label was
-  already saying. What the label stands for is spelled out under the cursor, `origin/dev` against
-  `local/dev`, for whoever does not yet read the colours. A repository with two remotes keeps the
-  prefix on all of them, since there the colour says `a remote` rather than which.
+- **A branch says where it has got to by its colour, once.** A branch you have pushed used to be
+  two labels of the same name side by side, one in each colour. It is one label now, green like
+  the branch it is, with a blue dot saying the remote has it too. The three cases stay apart:
+  green alone is a branch only you have, blue alone is one the remote has moved past you on, and
+  green with the dot is a branch that agrees with its copy. The remote's name comes off the front
+  of the label as well, since the colour was already saying it.
+
+  What a label stands for is spelled out under the cursor, `local/main and origin/main`, for
+  whoever does not yet read the colours. A repository with two remotes keeps the prefix and keeps
+  the labels apart, since there the colour says `a remote` rather than which, and `origin/dev`
+  and `upstream/dev` are two different places a branch has got to.
 
 - **Both columns open at their narrowest, and stay where you put them.** What a column opened at
   was a guess about your screen and your reading, made before either was known. The window opens
