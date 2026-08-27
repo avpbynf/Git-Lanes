@@ -561,14 +561,16 @@ button:disabled { cursor: default; color: var(--faint); }
   text-align: left;
 }
 
-/* the remote has this branch too, said on the label rather than beside it in a second one */
+/* the remote has this branch too, said on the label rather than beside it in a second one.
+   In the label's own colour, since it is the dot being there that says it and not the colour of
+   it: two colours inside one small stroke is a thing to decipher rather than to read */
 .ref .also {
   flex: none;
   width: 4px;
   height: 4px;
   margin-left: 4px;
   border-radius: 50%;
-  background: var(--accent);
+  background: currentColor;
 }
 
 /* not a ref but carried like one: where a shallow clone stops holding history */
@@ -594,8 +596,9 @@ button:disabled { cursor: default; color: var(--faint); }
 }
 
 /* where a branch has got to, at a glance: yours alone, theirs alone, or the same commit under
-   both names. The third stays the green of the branch it is and takes a dot in the other colour,
-   rather than a fourth colour nobody could place or two colours in one stroke */
+   both names. The third stays the green of the branch it is and takes a dot, rather than a
+   fourth colour nobody could place: the colour says where a ref lives, the dot says it lives in
+   both places */
 .ref.local,
 .ref.both { color: var(--add); border-color: var(--add); }
 .ref.remote { color: var(--accent); border-color: var(--accent); }
