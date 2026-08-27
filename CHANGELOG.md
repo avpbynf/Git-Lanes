@@ -20,6 +20,11 @@ still.
   up the line that carried on from it as well, and that is somebody else's history: what a click
   asks is how this commit got here, and the answer starts where the asking did.
 
+- **`merged` is said of the branches on a remote too**, not only of the ones you still have. A
+  pull request merged and its branch deleted leaves nothing local at all: the copy on the remote
+  is the only thing left saying that work happened, and it is what the row is carrying a label
+  for. A trunk's own copy on a remote is read as a trunk rather than as work waiting.
+
 - **A branch standing where a trunk stands is not called merged.** It has nothing of its own to
   have been merged: it was made and left, or the trunk has not moved since. The row already
   carries `dev` and `main` beside it, so the badge there said nothing that was not on screen
