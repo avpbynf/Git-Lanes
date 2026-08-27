@@ -3,7 +3,7 @@ import {
   fetchRepos, filtering, NO_FILTERS,
   type Filters, type Order, type RepoEntry,
 } from './api'
-import { ago } from './lanes'
+import { since } from './lanes'
 import { searching } from './search'
 import { ALL, HEADS, readScope, refOf, scopeOf } from './scope'
 import { readSettings, writeSettings, type Settings } from './settings'
@@ -204,7 +204,7 @@ export default function App() {
   const found = useMemo(() => searching(query, regex, matchCase), [query, regex, matchCase])
 
   const lit = refOf(scope) ?? taken ?? (graph?.branch ? HEADS + graph.branch : null)
-  const freshness = updatedAt ? `refresh, read ${ago(new Date(updatedAt))}` : 'refresh'
+  const freshness = updatedAt ? `refresh, read ${since(new Date(updatedAt))}` : 'refresh'
 
   return (
     <>

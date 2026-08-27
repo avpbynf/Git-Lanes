@@ -3,7 +3,7 @@ import {
   canPickFolder, closeRepo, discoverRepos, fetchBranches, openRepo, pickFolder,
   type Branch, type BranchList, type PlainRef, type RepoEntry,
 } from '../api'
-import { ago } from '../lanes'
+import { since } from '../lanes'
 import { MIN_WIDTH, usePanelWidth, WIDTH } from '../panel'
 import { countOf, ordered, tree, type Leaf, type Named, type Node } from '../refs'
 import { HEADS, REMOTES, TAGS } from '../scope'
@@ -42,7 +42,7 @@ function Divergence({ behind, ahead }: { behind: number; ahead: number }) {
 
 /** Everything about a branch, for the tooltip the row is too narrow to hold. */
 function storyOf(branch: Branch, base: string | null): string {
-  const lines = [branch.head.slice(0, 12), `last touched ${ago(new Date(branch.t))}`]
+  const lines = [branch.head.slice(0, 12), `last touched ${since(new Date(branch.t))}`]
   const against = branch.base ?? base
   if (against) lines.push(`${branch.ahead} ahead, ${branch.behind} behind ${against}`)
   if (!branch.upstream) lines.push('not pushed')
@@ -258,7 +258,7 @@ export function Sidebar({
         key={node.path}
         className={refname === active ? 'twig leaf on' : 'twig leaf'}
         style={{ paddingLeft: 6 + depth * 12 + 14 }}
-        title={`${node.ref.head.slice(0, 12)}\n${ago(new Date(node.ref.t))}`}
+        title={`${node.ref.head.slice(0, 12)}\n${since(new Date(node.ref.t))}`}
         onClick={() => onTake(refname, node.ref.head)}
       >
         <span className="name">{node.name}</span>

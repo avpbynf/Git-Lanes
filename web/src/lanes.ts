@@ -87,14 +87,31 @@ export function dayLabel(date: Date): string {
  * Past a week the clock time goes: nobody scans a column of minutes from last
  * March, and the row carries the whole date in its tooltip anyway. The column
  * is as wide as its widest answer, so every character here costs one there.
+ *
+ * Which is why the word `ago` is not written. A column of durations under a
+ * heading that says when reads as a duration whether the word is there or not,
+ * and it was four characters on every row of the history.
  */
 export function ago(date: Date, now = Date.now()): string {
   const seconds = (now - date.getTime()) / 1000
-  if (seconds < 60) return 'just now'
-  if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)} h ago`
-  if (seconds < 6 * 86400) return `${Math.floor(seconds / 86400)} d ago`
+  if (seconds < 60) return 'now'
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} min`
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} h`
+  if (seconds < 6 * 86400) return `${Math.floor(seconds / 86400)} d`
   return dayLabel(date)
+}
+
+/**
+ * The same answer written into a sentence, where a column's shorthand does not read.
+ *
+ * `read 3 min` says nothing on its own line, and `read 12 aug ago` is not English either:
+ * what the word belongs to is a duration, and past a week this stops answering with one.
+ */
+export function since(date: Date, now = Date.now()): string {
+  const seconds = (now - date.getTime()) / 1000
+  if (seconds < 60) return 'just now'
+  if (seconds < 6 * 86400) return `${ago(date, now)} ago`
+  return `on ${dayLabel(date)}`
 }
 
 /** A stable colour for an author, so the initials read as the same person. */
