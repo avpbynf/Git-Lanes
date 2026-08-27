@@ -199,10 +199,17 @@ def already_in_trunk(repo):
     they are one done twice.
 
     Both answers are the same question asked of the patch rather than of the hash.
+
+    Asked of the remote branches as well as of your own, since a pull request merged and its
+    branch deleted leaves nothing local at all: the copy on the remote is the only thing left
+    saying that work happened, and it is the one the row is carrying a label for.
     """
-    rows = [line.split() for line in
-            git(repo, "for-each-ref", "--format=%(refname:short) %(objectname)",
-                "refs/heads").splitlines() if line.strip()]
+    # `%(symref)` is what `refs/remotes/origin/HEAD` is, and it is no branch: filtering by a name
+    # ending in `/HEAD` misses it anyway, since for-each-ref shortens that one to `origin`
+    rows = [line.split("\x00") for line in
+            git(repo, "for-each-ref", "--format=%(refname:short)%00%(objectname)%00%(symref)",
+                "refs/heads", "refs/remotes").splitlines() if line.strip()]
+    rows = [row[:2] for row in rows if len(row) == 3 and not row[2]]
     # the trunks are part of the question, so a name added to them answers again rather than
     # handing back what was worked out under the old list
     key = (tuple(tuple(row) for row in rows), trunks_of(repo))
@@ -212,6 +219,10 @@ def already_in_trunk(repo):
 
     answer = (set(), {})
     named = trunks_of(repo)
+    # a trunk's copy on a remote is a trunk too, spelled out rather than split on the first
+    # slash, or a local branch called `feature/dev` would be read as one
+    named = set(named) | {"%s/%s" % (remote, name)
+                          for remote in remote_names(repo) for name in named}
     tips = {row[0]: row[1] for row in rows if len(row) == 2}
     trunks = [name for name in tips if name in named]
     topics = [name for name in tips if name not in named]
@@ -595,7 +606,7 @@ def graph_payload(repo, scope, limit, order, author="", since="", paths=""):
         if twin:
             commit["tw"] = twin
         for ref in commit["refs"]:
-            if ref["k"] == "local" and ref["n"] in merged:
+            if ref["k"] in ("local", "remote") and ref["n"] in merged:
                 ref["m"] = True
     return {
         "repo": os.path.basename(repo) or repo,
