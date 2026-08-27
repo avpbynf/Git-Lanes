@@ -224,6 +224,7 @@ export default function App() {
           current={current}
           shown={settings.showRefs}
           active={lit}
+          here={selected}
           fingerprint={graph?.fingerprint ?? ''}
           onPickRepo={pick}
           onRepos={refreshRepos}
