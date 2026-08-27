@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react'
 import {
-  canPickFolder, closeRepo, discoverRepos, fetchBranches, openRepo, pickFolder,
+  canPickFolder, closeRepo, discoverRepos, fetchBranches, openRepo, orderRepos, pickFolder,
   type Branch, type BranchList, type PlainRef, type RepoEntry,
 } from '../api'
 import { since } from '../lanes'
@@ -212,6 +212,24 @@ export function Sidebar({
     }
   }
 
+  /**
+   * The project under the pointer and the place it would take, or nothing at all.
+   *
+   * The list shows it already there rather than drawing anything of its own: what a hand is
+   * doing is putting a row somewhere, and the row being there is what says so.
+   */
+  const [moving, setMoving] = useState<{ path: string; to: number } | null>(null)
+  /** Where the pointer went down, until it has gone far enough to be a drag rather than a click. */
+  const grabbed = useRef<{ path: string; y: number } | null>(null)
+  /**
+   * The same placement as `moving`, kept where the drop can read it.
+   *
+   * State lands on a render, and a hand that lets go in the same breath as its last move lets go
+   * before that render: read from there, the drop would save the place before last.
+   */
+  const placed = useRef<{ path: string; to: number } | null>(null)
+  const shelfRef = useRef<HTMLDivElement>(null)
+
   // the answer carries the repository it read, so a stale tree never shows under another one
   const answered = answer?.repo === current ? answer : null
   const list = answered?.list
@@ -228,6 +246,87 @@ export function Sidebar({
         : repos,
     [repos, needle],
   )
+
+  /** A shelf with one of its rows put somewhere else, which is what a hand on one is asking for. */
+  const arrange = (list: RepoEntry[], put: { path: string; to: number } | null) => {
+    if (!put) return list
+    const one = list.find((repo) => repo.path === put.path)
+    if (!one) return list
+    const rest = list.filter((repo) => repo.path !== put.path)
+    rest.splice(Math.max(0, Math.min(put.to, rest.length)), 0, one)
+    return rest
+  }
+
+  /** The shelf as the hand is leaving it, which is the shelf itself while no hand is on it. */
+  const arranged = useMemo(() => arrange(shelf, moving), [shelf, moving])
+
+  /** Which row the pointer is over, by the halves of the rows as they stand at that moment. */
+  const placeAt = (y: number) => {
+    const rows = [...(shelfRef.current?.querySelectorAll('.project') ?? [])]
+    for (let index = 0; index < rows.length; index += 1) {
+      const box = rows[index].getBoundingClientRect()
+      if (y < box.top + box.height / 2) return index
+    }
+    return Math.max(0, rows.length - 1)
+  }
+
+  const onGrab = (event: PointerEvent<HTMLDivElement>, repo: RepoEntry) => {
+    // a hunted list is a list with rows missing from it, and an order set on those rows is an
+    // order set on a list nobody has: the whole shelf has to be on screen to be rearranged
+    if (needle || event.button !== 0) return
+    grabbed.current = { path: repo.path, y: event.clientY }
+  }
+
+  const onDrag = (event: PointerEvent<HTMLDivElement>) => {
+    const held = grabbed.current
+    if (!held) return
+    if (!moving) {
+      // four pixels, so that a click with a hand that is not perfectly still stays a click
+      if (Math.abs(event.clientY - held.y) < 4) return
+      event.currentTarget.setPointerCapture(event.pointerId)
+    }
+    const put = { path: held.path, to: placeAt(event.clientY) }
+    placed.current = put
+    setMoving(put)
+  }
+
+  /**
+   * The click a drop leaves behind, which would open whatever the row landed on.
+   *
+   * Caught on the row itself rather than remembered in a flag: a flag has to be put down again,
+   * and the click it waits for is one a drop does not always produce. The listener goes at the
+   * end of the same turn, so a drop that raised no click leaves nothing behind either.
+   */
+  const swallowClick = (row: HTMLElement) => {
+    const eat = (event: Event) => {
+      event.stopPropagation()
+      event.preventDefault()
+    }
+    row.addEventListener('click', eat, { capture: true, once: true })
+    setTimeout(() => row.removeEventListener('click', eat, { capture: true }), 0)
+  }
+
+  const onDrop = async (event: PointerEvent<HTMLDivElement>) => {
+    const row = event.currentTarget
+    const held = grabbed.current
+    const put = placed.current
+    grabbed.current = null
+    placed.current = null
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+    if (!held || !put) return
+    swallowClick(row)
+    const order = arrange(shelf, put).map((repo) => repo.path)
+    setMoving(null)
+    try {
+      await orderRepos(order)
+      onRepos()
+    } catch (err) {
+      setTrouble(err instanceof Error ? err.message : String(err))
+      onRepos()
+    }
+  }
 
   const shape = useMemo(() => {
     const keep = <T extends Named>(refs: T[]) =>
@@ -303,11 +402,21 @@ export function Sidebar({
 
       <div className="tree">
         {section('\0projects', 'projects', repos.length,
-          <>
-            {shelf.map((repo) => (
+          <div ref={shelfRef}>
+            {arranged.map((repo) => (
               <div
                 key={repo.path}
-                className={repo.path === current ? 'project on' : 'project'}
+                className={
+                  [
+                    'project',
+                    repo.path === current ? 'on' : '',
+                    moving?.path === repo.path ? 'lifted' : '',
+                  ].filter(Boolean).join(' ')
+                }
+                onPointerDown={(event) => onGrab(event, repo)}
+                onPointerMove={onDrag}
+                onPointerUp={(event) => void onDrop(event)}
+                onPointerCancel={(event) => void onDrop(event)}
               >
                 <button className="body" title={repo.path} onClick={() => onPickRepo(repo.path)}>
                   <span className="name">{repo.name}</span>
@@ -362,7 +471,7 @@ export function Sidebar({
                 ))}
               </div>
             )}
-          </>,
+          </div>,
         )}
 
         {answered?.error && <p className="empty">{answered.error}</p>}

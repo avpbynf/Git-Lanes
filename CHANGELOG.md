@@ -12,6 +12,13 @@ still.
 
 ## Unreleased
 
+- **The projects are put in the order you want them in**, by taking a row and dropping it where
+  it belongs. The list has always been most recently opened first, which is an order nobody
+  chose; a new project still lands on top, and everything else stays where you left it. Nothing
+  is added to the row to say so: it moves under the hand, and that is the saying. A list being
+  hunted holds still, since an order set on the rows a search left is an order set on a list
+  nobody has.
+
 - **A row draws the labels it can draw whole, and counts the rest.** A release commit carries
   its tag, its branch, the remote copy of that branch and the remote's own HEAD, and all four
   used to give up their heads at once: `...v`, `...1-beta`, `...in/main`, five labels nobody
