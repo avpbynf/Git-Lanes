@@ -376,13 +376,28 @@ export function Sidebar({
     )
   }
 
-  const section = (key: string, label: string, count: number, body: ReactNode) => (
+  /**
+   * A drawer, and what may stand at the end of the row naming it.
+   *
+   * `beside` is a sibling of the fold rather than something inside it: what folds a drawer is a
+   * button, and a button holds no second one.
+   */
+  const section = (
+    key: string,
+    label: string,
+    count: number,
+    body: ReactNode,
+    beside?: ReactNode,
+  ) => (
     <div className="part" key={key}>
-      <button className="twig part-head" onClick={() => fold(key)}>
-        <span className="caret">{shut.has(key) ? '>' : 'v'}</span>
-        <span className="name">{label}</span>
-        <span className="count">{count}</span>
-      </button>
+      <div className="part-row">
+        <button className="twig part-head" onClick={() => fold(key)}>
+          <span className="caret">{shut.has(key) ? '>' : 'v'}</span>
+          <span className="name">{label}</span>
+          <span className="count">{count}</span>
+        </button>
+        {beside}
+      </div>
       {!shut.has(key) && body}
     </div>
   )
@@ -425,21 +440,10 @@ export function Sidebar({
                 <button className="x" title="forget it" onClick={() => void drop(repo.path)}>x</button>
               </div>
             ))}
-            {repos.length === 0 && <p className="empty">nothing opened yet</p>}
+            {repos.length === 0 && <p className="empty asks">add a folder</p>}
             {shelf.length === 0 && repos.length > 0 && <p className="empty">no project by that name</p>}
 
-            {canPickFolder ? (
-              <button
-                className="twig add"
-                onClick={() => {
-                  pickFolder()
-                    .then((path) => openFolder(path))
-                    .catch((err) => setTrouble(err instanceof Error ? err.message : String(err)))
-                }}
-              >
-                + open a folder
-              </button>
-            ) : (
+            {!canPickFolder && (
               <div className="byhand">
                 <input
                   value={typed}
@@ -472,6 +476,19 @@ export function Sidebar({
               </div>
             )}
           </div>,
+          canPickFolder ? (
+            <button
+              className="add"
+              title="open a folder, or one holding repositories"
+              onClick={() => {
+                pickFolder()
+                  .then((path) => openFolder(path))
+                  .catch((err) => setTrouble(err instanceof Error ? err.message : String(err)))
+              }}
+            >
+              +
+            </button>
+          ) : undefined,
         )}
 
         {answered?.error && <p className="empty">{answered.error}</p>}
