@@ -242,11 +242,8 @@ button:disabled { cursor: default; color: var(--faint); }
 /* why there is nothing to click, when the reason is not that nothing is written */
 .doings .trouble { color: var(--del); font-size: 11px; align-self: center; }
 
-.log {
-  margin-top: 8px;
-  border-top: 1px solid var(--line);
-  padding-top: 8px;
-}
+/* the tab holds it now, so it has no neighbour above to be separated from */
+.log { margin: 0; }
 
 .log .empty {
   display: flex;
@@ -270,9 +267,6 @@ button:disabled { cursor: default; color: var(--faint); }
 
 /* what a command writes is written for a terminal: columns line up or they say nothing */
 .log pre {
-  max-height: 40vh;
-  overflow: auto;
-  scrollbar-color: var(--line) transparent;
   margin: 0;
   font: 11px/1.4 Consolas, 'Cascadia Mono', 'Courier New', monospace;
   white-space: pre-wrap;
@@ -596,6 +590,39 @@ button:disabled { cursor: default; color: var(--faint); }
   flex: none;
 }
 
+/* what a command wrote, given the room the commit's own facts have, rather than pushed under
+   them. There are two of them only while there is something to read in the second: a tab that
+   is empty most of the time is a tab nobody looks in */
+
+.tabs {
+  display: flex;
+  flex: none;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-alt);
+}
+
+.tabs button {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 5px 8px;
+  font-size: 11.5px;
+  color: var(--dim);
+}
+
+.tabs button:hover { color: var(--text); }
+
+.tabs button.on {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
 /* one field for everything under it, projects as much as branches and tags */
 .sidebar .hunt {
   display: flex;
@@ -740,8 +767,39 @@ button:disabled { cursor: default; color: var(--faint); }
   margin: 0 0 14px;
 }
 
-.panel .meta { color: var(--dim); font-size: 11.5px; margin: 0 0 12px; }
+/* the author and the date, then the hash and the count of what changed. Centred because
+   neither line is as wide as the column, and a short line left against an edge reads as the
+   start of a paragraph that never comes */
+.panel .meta {
+  color: var(--dim);
+  font-size: 11.5px;
+  margin: 0 0 12px;
+  text-align: center;
+  line-height: 1.7;
+}
+
 .panel .meta code { color: var(--text); }
+
+/* both are text that answers a click, so neither is dressed as a button: what says so is the
+   cursor, the underline under the hash, and what happens */
+.panel .meta .sha,
+.panel .meta .jump {
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.panel .meta .sha {
+  font-family: ui-monospace, Consolas, monospace;
+  color: var(--text);
+  border-bottom: 1px dotted var(--faint);
+}
+
+.panel .meta .sha:hover { border-bottom-color: var(--accent); }
+.panel .meta .jump:hover { color: var(--text); }
 
 .file {
   display: flex;
@@ -755,9 +813,25 @@ button:disabled { cursor: default; color: var(--faint); }
 .file.open { cursor: pointer; }
 .file.open:hover { background: var(--hover); }
 
+/* the head of a path is what a narrow column can lose, so it is read right to left and its
+   own end is what survives. The dots that say it was cut sit outside, since a neutral character
+   put at the head of a right to left run comes out at the other end of the line */
+.file .path {
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.file .cut {
+  flex: none;
+  font-style: normal;
+  color: var(--faint);
+}
+
 .file .p {
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
   direction: rtl;
   text-align: left;
 }

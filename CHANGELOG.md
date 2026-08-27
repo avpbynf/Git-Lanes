@@ -10,6 +10,24 @@ than publishing an installer named after one thing and built from another.
 Nothing here promises what the next version holds, and nothing under `1.0.0` promises to hold
 still.
 
+## Unreleased
+
+- **The history's last column stops saying `ago`.** A column of durations under a heading that
+  says when reads as a duration without the word, and those four characters were on every row.
+  Where a sentence needs the word rather than a column, it still has it.
+
+- **The panel says who, when, which and how much on one line**, centred under the subject: the
+  author, how long ago, the hash and the count of what changed. The date is written the way the
+  history writes it, with the whole of it under the cursor, the hash copies itself when you click
+  it, and the count is the way down to the files it counts.
+
+- **A file's path keeps its last four parts.** What tells two files apart is the end of a path
+  rather than the folders they share, and the whole of it is still under the cursor.
+
+- **What a command writes gets a tab of its own**, beside the commit's own facts rather than
+  pushed under them. The second tab is named after the command and appears only once one has run;
+  `clear` takes it away again.
+
 ## 0.4.2
 
 - **The example written on the first open carries an editor.** Opening a commit in your own

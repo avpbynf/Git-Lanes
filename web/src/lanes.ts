@@ -102,16 +102,16 @@ export function ago(date: Date, now = Date.now()): string {
 }
 
 /**
- * The same answer written into a sentence, where a column's shorthand does not read.
+ * The same answer with the word, where there is room for it and no heading to lend the sense.
  *
- * `read 3 min` says nothing on its own line, and `read 12 aug ago` is not English either:
- * what the word belongs to is a duration, and past a week this stops answering with one.
+ * `read 3 min` says nothing on its own, and `12 aug ago` is not English either: the word
+ * belongs to a duration, and past a week this stops answering with one.
  */
 export function since(date: Date, now = Date.now()): string {
   const seconds = (now - date.getTime()) / 1000
   if (seconds < 60) return 'just now'
   if (seconds < 6 * 86400) return `${ago(date, now)} ago`
-  return `on ${dayLabel(date)}`
+  return dayLabel(date)
 }
 
 /** A stable colour for an author, so the initials read as the same person. */
